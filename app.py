@@ -139,6 +139,8 @@ class ShopifyProductSync:
             raise
 
 def main():
+    st.image("logo.png", use_column_width=True)  # Replace with the path to your logo
+
     st.title("Wow Store Product Sync App!")
 
     # Use Streamlit secrets for sensitive information
