@@ -140,6 +140,7 @@ class ShopifyProductSync:
 
 def main():
     st.title("Wow Store Product Sync App!")
+    st.image("logo.png", width=200, use_column_width=False)  # Adjust width as needed
 
     # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
