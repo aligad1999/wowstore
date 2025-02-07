@@ -155,7 +155,7 @@ def main():
         if all(column in external_df.columns for column in required_columns):
             st.markdown("""
             📂 File uploaded and validated successfully!  
-            Wait...🫠🤌🏻💗
+            Loading…
             """)
             df = sync.get_products()
             st.write(f"Retrieved {len(df)} product variants.")
