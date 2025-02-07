@@ -166,8 +166,15 @@ def main():
             st.write(f"Retrieved {len(df)} product variants.")
 
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
+            
+            # Keep only the required columns
+            columns_to_keep = ["variant_id", "updated_at", "title", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
+            merged_df = merged_df[columns_to_keep]
+            
+            # Display the filtered DataFrame
             st.write("Merged Data:")
             st.dataframe(merged_df)
+
 
             progress_bar = st.progress(0)
             total_updates = len(merged_df)
