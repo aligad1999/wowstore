@@ -138,7 +138,7 @@ def main():
     st.markdown(
         """
         <div style="display: flex; justify-content: center;">
-            <img src="logo.png" width="200">
+            <img src="logo.png" width="100">
         </div>
         """,
         unsafe_allow_html=True
