@@ -47,7 +47,6 @@ class ShopifyProductSync:
                     'inventory_quantity': variant.get('inventory_quantity'),
                     'created_at': product.get('created_at'),
                     'updated_at': product.get('updated_at'),
-                    'retrieved_at': datetime.utcnow()
                 }
                 
                 # Check if price is zero and update inventory quantity to 0
@@ -63,7 +62,6 @@ class ShopifyProductSync:
         df['inventory_quantity'] = pd.to_numeric(df['inventory_quantity'], errors='coerce')
         df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce', utc=True)
         df['updated_at'] = pd.to_datetime(df['updated_at'], errors='coerce', utc=True)
-        df['retrieved_at'] = pd.to_datetime(df['retrieved_at'], errors='coerce', utc=True)
 
         return df
 
