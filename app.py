@@ -159,7 +159,7 @@ def main():
             for i, (_, row) in enumerate(merged_df.iterrows()):
                 sync.update_product_variant(row['variant_id'], row['Sales Price'], row['الإجمالي المتاح'])
                 progress_bar.progress((i + 1) / total_updates)
-                time.sleep(0.1)  # Simulate delay for progress bar
+                time.sleep(0.30)  # Simulate delay for progress bar
 
             st.write(f"✅ Updated {total_updates} products based on Excel data.")
         else:
