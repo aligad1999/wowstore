@@ -39,7 +39,7 @@ st.markdown(
         }
     </style>
     <div class="centered">
-        <img src="logo.png" width="200">
+        <img src="logo.png" width="400">
     </div>
     <p class="title-text">Wow Store Product Sync</p>
     """,
