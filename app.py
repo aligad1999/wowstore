@@ -155,8 +155,6 @@ def main():
         if all(column in external_df.columns for column in required_columns):
             st.write("📂 File uploaded and validated successfully!")
             df = sync.get_products()
-            st.write("Wait...🫠🤌🏻💗")
-
             st.write(f"Retrieved {len(df)} product variants.")
 
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
