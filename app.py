@@ -150,7 +150,7 @@ def main():
             margin-bottom: 20px;
         }
         .logo-img {
-            max-width: 200px;
+            max-width: 400px;
         }
         </style>
         """,
