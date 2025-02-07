@@ -133,7 +133,16 @@ class ShopifyProductSync:
 
 def main():
     st.set_page_config(page_title="Wow Store Product Sync App!", page_icon=":random:", layout="wide")
-    st.image("logo.png", width=400)
+    
+    # Center the image using HTML and CSS
+    st.markdown(
+        """
+        <div style="display: flex; justify-content: center;">
+            <img src="logo.png" width="400">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
