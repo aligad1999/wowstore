@@ -161,7 +161,7 @@ def main():
                 progress_bar.progress((i + 1) / total_updates)
                 time.sleep(0.1)  # Simulate delay for progress bar
 
-            st.write(f"Updated {total_updates} products based on Excel data.")
+            st.write(f"✅ Updated {total_updates} products based on Excel data.")
         else:
             st.error(f"File must contain the following columns: {required_columns}")
 
