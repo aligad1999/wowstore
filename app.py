@@ -146,7 +146,7 @@ def main():
         external_df = pd.read_excel(uploaded_file)
         required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price']
         if all(column in external_df.columns for column in required_columns):
-            st.write("File uploaded successfully and validated.")
+            st.write("📂 File uploaded and validated successfully!")
             df = sync.get_products()
             st.write(f"Retrieved {len(df)} product variants.")
 
