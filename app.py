@@ -132,13 +132,8 @@ class ShopifyProductSync:
             raise
 
 def main():
-    st.set_page_config(page_title="Wow Store Product Sync App!", page_icon=":random:", layout="wide")
-    st.markdown("""
-        <div style="display: flex; justify-content: center;">
-            <img src="logo.png" width="400">
-        </div>
-    """, unsafe_allow_html=True)
-    
+    st.title("Wow Store Product Sync")
+
     # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
     access_token = st.secrets["access_token"]
