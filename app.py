@@ -139,8 +139,40 @@ class ShopifyProductSync:
             raise
 
 def main():
-    st.title("Wow Store Product Sync App!")
-    st.image("logo.png", width=200, use_column_width=False)  # Adjust width as needed
+    # Custom CSS to center the logo
+    st.markdown(
+        """
+        <style>
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logo-img {
+            max-width: 200px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Add the logo
+    st.markdown(
+        """
+        <div class="logo-container">
+            <img src="https://via.placeholder.com/200" class="logo-img" alt="Logo">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Set the title of the app
+    st.title("Shopify Product Sync")
+    
+    # Rest of your app code
+    st.write("Welcome to the Shopify Product Sync app!")
+
 
     # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
