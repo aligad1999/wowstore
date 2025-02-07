@@ -132,7 +132,7 @@ class ShopifyProductSync:
             raise
 
 def main():
-    st.title("Wow Store Product Sync")
+    st.title("Wow Store Product Sync App!")
 
     # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
