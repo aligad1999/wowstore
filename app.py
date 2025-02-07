@@ -41,7 +41,6 @@ class ShopifyProductSync:
                     'product_id': product.get('id'),
                     'title': product.get('title'),
                     'variant_id': variant.get('id'),
-                    'variant_title': variant.get('title'),
                     'price': variant.get('price'),
                     'sku': variant.get('sku'),
                     'inventory_quantity': variant.get('inventory_quantity'),
