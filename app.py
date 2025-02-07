@@ -139,16 +139,7 @@ class ShopifyProductSync:
             raise
 
 def main():
-# Streamlit UI
-    st.set_page_config(page_title="Wow Store Product Sync App!", page_icon=":random:", layout="wide")
-    st.markdown("""
-        <div style="display: flex; justify-content: center;">
-            <img src="logo.png" width="400">
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.title("Shopify Product Update Tool")
-
+    st.title("Wow Store Product Sync App!")
 
     # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
