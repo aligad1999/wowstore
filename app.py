@@ -139,39 +139,15 @@ class ShopifyProductSync:
             raise
 
 def main():
-    # Custom CSS to center the logo
-    st.markdown(
-        """
-        <style>
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .logo-img {
-            max-width: 400px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-    
-    # Add the logo
-    st.markdown(
-        """
-        <div class="logo-container">
-            <img src="https://via.placeholder.com/200" class="logo-img" alt="Logo">
+# Streamlit UI
+    st.set_page_config(page_title="Wow Store Product Sync App!", page_icon=":random:", layout="wide")
+    st.markdown("""
+        <div style="display: flex; justify-content: center;">
+            <img src="logo.png" width="400">
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
     
-    # Set the title of the app
-    st.title("Shopify Product Sync")
-    
-    # Rest of your app code
-    st.write("Welcome to the Shopify Product Sync app!")
+    st.title("Shopify Product Update Tool")
 
 
     # Use Streamlit secrets for sensitive information
