@@ -146,7 +146,7 @@ def main():
         external_df = pd.read_excel(uploaded_file)
         required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price']
         if all(column in external_df.columns for column in required_columns):
-            st.write("📂 File uploaded and validated successfully!")
+            st.write("File uploaded successfully and validated.")
             df = sync.get_products()
             st.write(f"Retrieved {len(df)} product variants.")
 
@@ -154,14 +154,24 @@ def main():
             st.write("Merged Data:")
             st.dataframe(merged_df)
 
+            # Progress bar over 5 seconds
             progress_bar = st.progress(0)
             total_updates = len(merged_df)
+            start_time = time.time()
+            duration = 5  # 5 seconds
+
             for i, (_, row) in enumerate(merged_df.iterrows()):
                 sync.update_product_variant(row['variant_id'], row['Sales Price'], row['الإجمالي المتاح'])
-                progress_bar.progress((i + 1) / total_updates)
-                time.sleep(0.1)  # Simulate delay for progress bar
+                
+                # Calculate progress based on elapsed time
+                elapsed_time = time.time() - start_time
+                progress = min(elapsed_time / duration, 1.0)  # Ensure progress doesn't exceed 1.0
+                progress_bar.progress(progress)
+                
+                # Sleep to simulate a 5-second progress bar
+                time.sleep(duration / total_updates)
 
-            st.write(f"✅ Updated {total_updates} products based on Excel data.")
+            st.write(f"Updated {total_updates} products based on Excel data.")
         else:
             st.error(f"File must contain the following columns: {required_columns}")
 
