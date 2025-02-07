@@ -139,8 +139,32 @@ class ShopifyProductSync:
             raise
 
 def main():
-    st.image("logo.png", use_column_width=True)  # Replace with the path to your logo
-
+    st.markdown(
+        """
+        <style>
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logo-img {
+            max-width: 200px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Add the logo
+    st.markdown(
+        """
+        <div class="logo-container">
+            <img src="logo.png" class="logo-img" alt="Logo">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     st.title("Wow Store Product Sync App!")
 
     # Use Streamlit secrets for sensitive information
