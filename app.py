@@ -139,32 +139,14 @@ class ShopifyProductSync:
             raise
 
 def main():
-    st.markdown(
-        """
-        <style>
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .logo-img {
-            max-width: 200px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
     
-    # Add the logo
-    st.markdown(
-        """
-        <div class="logo-container">
-            <img src="logo.png" class="logo-img" alt="Logo">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # Create columns to center the logo
+    col1, col2, col3 = st.columns([1, 2, 1])  # Adjust the column ratios as needed
+    
+    # Add the logo to the middle column
+    with col2:
+        st.image("logo.png", width=200)  # Replace with the path to your logo
+        
     st.title("Wow Store Product Sync App!")
 
     # Use Streamlit secrets for sensitive information
