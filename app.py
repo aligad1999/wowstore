@@ -49,6 +49,13 @@ class ShopifyProductSync:
                     'updated_at': product.get('updated_at'),
                     'retrieved_at': datetime.utcnow()
                 }
+                
+                # Check if price is zero and update inventory quantity to 0
+                if float(variant.get('price', 0)) == 0:
+                    self.update_product_variant(variant.get('id'), 0, 0)
+                    product_data['inventory_quantity'] = 0
+                    logging.info(f"Set inventory to 0 for variant {variant.get('id')} with zero price")
+
                 processed_data.append(product_data)
 
         df = pd.DataFrame(processed_data)
