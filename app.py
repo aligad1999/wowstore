@@ -132,6 +132,8 @@ class ShopifyProductSync:
             raise
 
 def main():
+    st.sidebar.image("logo.png", width=150)  # Adjust the width as needed
+
     st.title("Wow Store Product Sync")
 
     # Use Streamlit secrets for sensitive information
