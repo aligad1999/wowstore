@@ -181,6 +181,7 @@ def main():
 
             # Find unmatched SKUs
             unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])]
+            unmatched_skus["status"] = "draft"
             st.write(f"📌 {len(unmatched_skus)} new products will be created.")
             st.dataframe(unmatched_skus)
 
