@@ -71,12 +71,13 @@ class ShopifyProductSync:
         else:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
 
-    def create_product(self, title, sku, price, inventory):
-        """Create a new product in Shopify"""
+    def create_product(self, title, sku, price, inventory, brand):
+        """Create a new product in Shopify with the given brand."""
         data = {
             "product": {
                 "title": title,
-                "status": "draft",  # Set new product status to draft
+                "status": "draft",  
+                "vendor": brand, 
                 "variants": [{
                     "sku": sku,
                     "price": price,
@@ -86,11 +87,12 @@ class ShopifyProductSync:
         }
         response = requests.post(self.base_url, headers=self.headers, json=data)
         if response.status_code == 201:
-            logging.info(f"Created new product '{title}' with SKU {sku}")
+            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}'")
             return response.json()
         else:
             logging.error(f"Failed to create product {title}: {response.text}")
             return None
+
 
     def get_products(self):
         """Retrieve products from Shopify API"""
@@ -153,7 +155,7 @@ def main():
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
     if uploaded_file is not None:
         external_df = pd.read_excel(uploaded_file)
-        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج']
+        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج','Brand']
         
         if all(column in external_df.columns for column in required_columns):
             st.success("✅ File uploaded and validated successfully!")
@@ -163,7 +165,7 @@ def main():
 
             # Perform merge
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
-            columns_to_keep = ["variant_id", "updated_at", "title", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
+            columns_to_keep = ["variant_id", "updated_at", "title","Brand", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
             show_merged_df = merged_df[columns_to_keep]
             st.write("Merged Data:")
             st.dataframe(show_merged_df)
@@ -181,9 +183,9 @@ def main():
                 progress_bar.progress((i + 1) / total_updates)
                 time.sleep(0.1)
 
-            # Create new products
+            # Create new products with the Brand information
             for i, (_, row) in enumerate(unmatched_skus.iterrows(), start=len(merged_df)):
-                sync.create_product(row["اسم المنتج"], row["اسم البحث"], row["Sales Price"], row["الإجمالي المتاح"])
+                sync.create_product(row["اسم المنتج"], row["اسم البحث"], row["Sales Price"], row["الإجمالي المتاح"], row["Brand"])
                 progress_bar.progress((i + 1) / total_updates)
                 time.sleep(0.1)
 
