@@ -144,8 +144,16 @@ class ShopifyProductSync:
             raise
 
 def main():
+    # Create columns to center the logo
+    col1, col2, col3 = st.columns([1, 2, 1])  # Adjust the column ratios as needed
+    
+    # Add the logo to the middle column
+    with col2:
+        st.image("logo.png", width=200)  # Replace with the path to your logo
+        
     st.title("Wow Store Product Sync App!")
 
+    # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
     access_token = st.secrets["access_token"]
 
