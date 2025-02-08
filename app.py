@@ -166,21 +166,23 @@ def main():
         required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج','Brand']
         
         if all(column in external_df.columns for column in required_columns):
-            st.success("✅ File uploaded and validated successfully!")
+            st.success("📂 File uploaded and validated successfully!")
             
             df = sync.get_products()
-            st.write(f"Retrieved {len(df)} product variants.")
+            #st.write(f"Retrieved {len(df)} product variants.")
 
             # Perform merge
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
             columns_to_keep = ["variant_id", "updated_at", "title","Brand", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
             show_merged_df = merged_df[columns_to_keep]
-            st.write("Merged Data:")
+            
+            st.write(f"✅ {len(merged_df)} Updated products based on Excel data.")
             st.dataframe(show_merged_df)
 
             # Find unmatched SKUs
             unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])]
             st.write(f"📌 {len(unmatched_skus)} new products will be created.")
+            st.dataframe(unmatched_skus)
 
             progress_bar = st.progress(0)
             total_updates = len(merged_df) + len(unmatched_skus)
