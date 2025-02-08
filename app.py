@@ -151,15 +151,15 @@ def main():
     with col2:
         st.image("logo.png", width=200)  # Replace with the path to your logo
         
-    st.title("🔄 Wow Store Product Sync & Update Tool!")
+    st.title("🔄 Wow Store Product Sync Tool!")
 
     # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
     access_token = st.secrets["access_token"]
 
     sync = ShopifyProductSync(store_name, access_token)
-    st.write("Easily update and sync product prices and inventory with Shopify by uploading an Excel file. This tool merges your store’s data with the file, updates existing products, and creates new ones as drafts if they don’t exist. Track progress with a live update bar and see the number of affected SKUs. Secure and efficient product management made simple! 🚀")
-
+    st.write("Sync and update product prices and inventory on Shopify with a simple Excel upload. Automatically update existing products and create new ones as drafts if missing. Track progress in real time! 🚀")
+             
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
     if uploaded_file is not None:
         external_df = pd.read_excel(uploaded_file)
