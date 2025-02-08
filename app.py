@@ -22,15 +22,6 @@ class ShopifyProductSync:
             "X-Shopify-Access-Token": access_token
         }
 
-    def extract_nested_value(self, data, path):
-        """Extract nested dictionary values using dot notation path"""
-        try:
-            for key in path.split('.'):
-                data = data.get(key, {})
-            return data if data != {} else None
-        except:
-            return None
-
     def process_products_to_dataframe(self, products):
         """Convert products to DataFrame with specific columns"""
         processed_data = []
@@ -41,31 +32,31 @@ class ShopifyProductSync:
                     'product_id': product.get('id'),
                     'title': product.get('title'),
                     'variant_id': variant.get('id'),
-                    'price': variant.get('price'),
+                    'price': float(variant.get('price', 0)),
                     'sku': variant.get('sku'),
                     'inventory_quantity': variant.get('inventory_quantity'),
                     'created_at': product.get('created_at'),
                     'updated_at': product.get('updated_at'),
+                    'status': product.get('status', 'active')  # Capture the product status
                 }
-                
-                # Check if price is zero and update inventory quantity to 0
-                if float(variant.get('price', 0)) == 0:
+
+                # If price is 0, set inventory to 0 and update product to draft
+                if product_data['price'] == 0:
                     self.update_product_variant(variant.get('id'), 0, 0)
                     product_data['inventory_quantity'] = 0
-                    logging.info(f"Set inventory to 0 for variant {variant.get('id')} with zero price")
+                    product_data['status'] = "draft"
+                    logging.info(f"Set inventory to 0 and status to draft for variant {variant.get('id')} with zero price")
 
                 processed_data.append(product_data)
 
         df = pd.DataFrame(processed_data)
-        df['price'] = pd.to_numeric(df['price'], errors='coerce')
-        df['inventory_quantity'] = pd.to_numeric(df['inventory_quantity'], errors='coerce')
         df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce', utc=True)
         df['updated_at'] = pd.to_datetime(df['updated_at'], errors='coerce', utc=True)
 
         return df
 
     def update_product_variant(self, variant_id, new_price, new_inventory):
-        """Update the price and inventory of a product variant on Shopify"""
+        """Update price and inventory of a product variant on Shopify"""
         update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
         data = {
             "variant": {
@@ -80,6 +71,27 @@ class ShopifyProductSync:
         else:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
 
+    def create_product(self, title, sku, price, inventory):
+        """Create a new product in Shopify"""
+        data = {
+            "product": {
+                "title": title,
+                "status": "draft",  # Set new product status to draft
+                "variants": [{
+                    "sku": sku,
+                    "price": price,
+                    "inventory_quantity": inventory
+                }]
+            }
+        }
+        response = requests.post(self.base_url, headers=self.headers, json=data)
+        if response.status_code == 201:
+            logging.info(f"Created new product '{title}' with SKU {sku}")
+            return response.json()
+        else:
+            logging.error(f"Failed to create product {title}: {response.text}")
+            return None
+
     def get_products(self):
         """Retrieve products from Shopify API"""
         try:
@@ -88,12 +100,7 @@ class ShopifyProductSync:
             page_count = 1
 
             while True:
-                response = requests.get(
-                    self.base_url,
-                    headers=self.headers,
-                    params=params
-                )
-
+                response = requests.get(self.base_url, headers=self.headers, params=params)
                 logging.info(f"Fetching page {page_count}")
 
                 if response.status_code == 200:
@@ -106,8 +113,7 @@ class ShopifyProductSync:
                     if 'rel="next"' not in link_header:
                         break
 
-                    next_link = [l.split(';')[0].strip('<> ') for l in link_header.split(',') 
-                               if 'rel="next"' in l]
+                    next_link = [l.split(';')[0].strip('<> ') for l in link_header.split(',') if 'rel="next"' in l]
                     if not next_link:
                         break
 
@@ -136,17 +142,8 @@ class ShopifyProductSync:
             raise
 
 def main():
-    
-    # Create columns to center the logo
-    col1, col2, col3 = st.columns([1, 2, 1])  # Adjust the column ratios as needed
-    
-    # Add the logo to the middle column
-    with col2:
-        st.image("logo.png", width=200)  # Replace with the path to your logo
-        
     st.title("Wow Store Product Sync App!")
 
-    # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
     access_token = st.secrets["access_token"]
 
@@ -156,34 +153,41 @@ def main():
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
     if uploaded_file is not None:
         external_df = pd.read_excel(uploaded_file)
-        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price']
+        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج']
+        
         if all(column in external_df.columns for column in required_columns):
-            st.markdown("""
-            📂 File uploaded and validated successfully!  
-            Loading…
-            """)
+            st.success("✅ File uploaded and validated successfully!")
+            
             df = sync.get_products()
             st.write(f"Retrieved {len(df)} product variants.")
 
+            # Perform merge
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
-            
-            # Keep only the required columns
             columns_to_keep = ["variant_id", "updated_at", "title", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
-            merged_df = merged_df[columns_to_keep]
-            
-            # Display the filtered DataFrame
+            show_merged_df = merged_df[columns_to_keep]
             st.write("Merged Data:")
-            st.dataframe(merged_df)
+            st.dataframe(show_merged_df)
 
+            # Find unmatched SKUs
+            unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])]
+            st.write(f"📌 {len(unmatched_skus)} new products will be created.")
 
             progress_bar = st.progress(0)
-            total_updates = len(merged_df)
+            total_updates = len(merged_df) + len(unmatched_skus)
+
+            # Update existing products
             for i, (_, row) in enumerate(merged_df.iterrows()):
                 sync.update_product_variant(row['variant_id'], row['Sales Price'], row['الإجمالي المتاح'])
                 progress_bar.progress((i + 1) / total_updates)
-                time.sleep(0.1)  # Simulate delay for progress bar
+                time.sleep(0.1)
 
-            st.write(f"✅ Updated {total_updates} products based on Excel data.")
+            # Create new products
+            for i, (_, row) in enumerate(unmatched_skus.iterrows(), start=len(merged_df)):
+                sync.create_product(row["اسم المنتج"], row["اسم البحث"], row["Sales Price"], row["الإجمالي المتاح"])
+                progress_bar.progress((i + 1) / total_updates)
+                time.sleep(0.1)
+
+            st.success(f"✅ Updated {len(merged_df)} products and created {len(unmatched_skus)} new products.")
         else:
             st.error(f"File must contain the following columns: {required_columns}")
 
