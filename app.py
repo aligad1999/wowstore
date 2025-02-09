@@ -166,7 +166,10 @@ def main():
         required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج','Brand']
         
         if all(column in external_df.columns for column in required_columns):
-            st.success("📂 File uploaded and validated successfully!")
+            st.markdown("""
+            📂 File uploaded and validated successfully!  
+            Loading…
+            """)
             
             df = sync.get_products()
             #st.write(f"Retrieved {len(df)} product variants.")
