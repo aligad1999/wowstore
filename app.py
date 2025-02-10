@@ -37,10 +37,9 @@ class ShopifyProductSync:
                     'inventory_quantity': variant.get('inventory_quantity'),
                     'created_at': product.get('created_at'),
                     'updated_at': product.get('updated_at'),
-                    'status': product.get('status', 'active')  # Capture the product status
+                    'status': product.get('status', 'active')
                 }
 
-                # If price is 0, set inventory to 0 and update product to draft
                 if product_data['price'] == 0:
                     self.update_product_variant(variant.get('id'), 0, 0)
                     product_data['inventory_quantity'] = 0
@@ -55,32 +54,53 @@ class ShopifyProductSync:
 
         return df
 
+    def safe_float(self, value, default=0):
+        """Safely convert value to float, handling None, NaN, and string numbers with commas"""
+        if pd.isna(value) or value == '':
+            return default
+        if isinstance(value, str):
+            # Remove commas and spaces
+            value = value.replace(',', '').strip()
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+
     def update_product_variant(self, variant_id, new_price, new_inventory):
         """Update price and inventory of a product variant on Shopify"""
+        # Convert and validate the values
+        safe_price = self.safe_float(new_price)
+        safe_inventory = int(self.safe_float(new_inventory))  # Convert to integer for inventory
+
         update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
         data = {
             "variant": {
                 "id": variant_id,
-                "price": new_price,
-                "inventory_quantity": new_inventory
+                "price": safe_price,
+                "inventory_quantity": safe_inventory
             }
         }
         response = requests.put(update_url, headers=self.headers, json=data)
         if response.status_code == 200:
-            logging.info(f"Updated variant {variant_id} with price {new_price} and inventory {new_inventory}")
+            logging.info(f"Updated variant {variant_id} with price {safe_price} and inventory {safe_inventory}")
         else:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
 
     def create_product(self, title, sku, price, inventory, brand):
         """Create a new product in Shopify with the given brand."""
+        # Convert and validate the values
+        safe_price = self.safe_float(price)
+        safe_inventory = int(self.safe_float(inventory))  # Convert to integer for inventory
+
         data = {
             "product": {
                 "title": title,
-                "status": "draft",  
+                "status": "draft",
+                "vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
                 "variants": [{
                     "sku": sku,
-                    "price": price,
-                    "inventory_quantity": inventory
+                    "price": safe_price,
+                    "inventory_quantity": safe_inventory
                 }]
             }
         }
@@ -91,7 +111,6 @@ class ShopifyProductSync:
         else:
             logging.error(f"Failed to create product {title}: {response.text}")
             return None
-
 
     def get_products(self):
         """Retrieve products from Shopify API"""
@@ -143,16 +162,13 @@ class ShopifyProductSync:
             raise
 
 def main():
-    # Create columns to center the logo
-    col1, col2, col3 = st.columns([1, 2, 1])  # Adjust the column ratios as needed
+    col1, col2, col3 = st.columns([1, 2, 1])
     
-    # Add the logo to the middle column
     with col2:
-        st.image("logo.png", width=200)  # Replace with the path to your logo
+        st.image("logo.png", width=200)
         
     st.title("🔄 Wow Store Product Sync Tool!")
 
-    # Use Streamlit secrets for sensitive information
     store_name = st.secrets["store_name"]
     access_token = st.secrets["access_token"]
 
@@ -169,6 +185,11 @@ def main():
             📂 File uploaded and validated successfully!  
             Loading…
             """)
+            
+            # Clean up the data
+            external_df['الإجمالي المتاح'] = external_df['الإجمالي المتاح'].apply(sync.safe_float)
+            external_df['Sales Price'] = external_df['Sales Price'].apply(sync.safe_float)
+            external_df['Brand'] = external_df['Brand'].fillna('').astype(str).str.strip()
             
             df = sync.get_products()
 
@@ -189,37 +210,13 @@ def main():
             progress_bar = st.progress(0)
             total_updates = len(merged_df) + len(unmatched_skus)
 
-            # Handle missing values in numerical columns
-            def clean_numeric(value):
-                """Ensure numeric values are valid and not NaN/None/Empty."""
-                if pd.isna(value) or value == "" or value is None:
-                    return 0.0  # Convert missing values to zero
-                try:
-                    return float(value)
-                except ValueError:
-                    return 0.0  # If conversion fails, default to zero
-
-            for col in ["الإجمالي المتاح", "Sales Price"]:
-                merged_df[col] = merged_df[col].apply(clean_numeric)
-                unmatched_skus[col] = unmatched_skus[col].apply(clean_numeric)
-
-            # Ensure all numbers are JSON-safe
-            merged_df.fillna(0, inplace=True)
-            unmatched_skus.fillna(0, inplace=True)
-
-            # Ensure all float values are valid
-            merged_df["الإجمالي المتاح"] = merged_df["الإجمالي المتاح"].astype(float)
-            merged_df["Sales Price"] = merged_df["Sales Price"].astype(float)
-            unmatched_skus["الإجمالي المتاح"] = unmatched_skus["الإجمالي المتاح"].astype(float)
-            unmatched_skus["Sales Price"] = unmatched_skus["Sales Price"].astype(float)
-
             # Update existing products
             for i, (_, row) in enumerate(merged_df.iterrows()):
                 sync.update_product_variant(row['variant_id'], row['Sales Price'], row['الإجمالي المتاح'])
                 progress_bar.progress((i + 1) / total_updates)
                 time.sleep(0.1)
 
-            # Create new products with the Brand information
+            # Create new products
             for i, (_, row) in enumerate(unmatched_skus.iterrows(), start=len(merged_df)):
                 sync.create_product(row["اسم المنتج"], row["اسم البحث"], row["Sales Price"], row["الإجمالي المتاح"], row["Brand"])
                 progress_bar.progress((i + 1) / total_updates)
