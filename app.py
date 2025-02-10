@@ -72,22 +72,27 @@ class ShopifyProductSync:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
 
     def create_product(self, title, sku, price, inventory, brand):
-        """Create a new product in Shopify with the given brand."""
+        """Create a new product in Shopify with the brand stored in metafields."""
         data = {
             "product": {
                 "title": title,
                 "status": "draft",  
-                "vendor": brand, 
                 "variants": [{
                     "sku": sku,
                     "price": price,
                     "inventory_quantity": inventory
+                }],
+                "metafields": [{
+                    "namespace": "custom",
+                    "key": "brand",
+                    "value": brand,
+                    "type": "string"
                 }]
             }
         }
         response = requests.post(self.base_url, headers=self.headers, json=data)
         if response.status_code == 201:
-            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}'")
+            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}' in metafields")
             return response.json()
         else:
             logging.error(f"Failed to create product {title}: {response.text}")
