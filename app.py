@@ -191,8 +191,6 @@ def main():
             unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])].copy()
             unmatched_skus.fillna({"Sales Price": 0, "الإجمالي المتاح": 0, "Brand": "Unknown", "اسم المنتج": "Untitled Product"}, inplace=True)
             unmatched_skus["status"] = "draft"
-
-            unmatched_skus["status"] = "draft"
             st.write(f"📌 {len(unmatched_skus)} new products will be created.")
             st.dataframe(unmatched_skus)
 
