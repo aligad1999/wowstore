@@ -77,7 +77,10 @@ class ShopifyProductSync:
             "variant": {
                 "id": variant_id,
                 "price": safe_price,
-                "inventory_quantity": safe_inventory
+                "inventory_quantity": safe_inventory,
+                "inventory_management": "shopify",  # Enable inventory tracking
+                "inventory_policy": "deny",  # Prevent selling when out of stock
+                "requires_shipping": True
             }
         }
         response = requests.put(update_url, headers=self.headers, json=data)
@@ -100,7 +103,11 @@ class ShopifyProductSync:
                 "variants": [{
                     "sku": sku,
                     "price": safe_price,
-                    "inventory_quantity": safe_inventory
+                    "inventory_quantity": safe_inventory,
+                    "inventory_management": "shopify",  # Enable inventory tracking
+                    "inventory_policy": "deny",  # Prevent selling when out of stock
+                    "requires_shipping": True
+                    
                 }]
             }
         }
