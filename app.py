@@ -181,7 +181,6 @@ def main():
         external_df["الإجمالي المتاح"] = clean_numeric(external_df["الإجمالي المتاح"])
         external_df["Sales Price"] = clean_numeric(external_df["Sales Price"])
         
-        
         if all(column in external_df.columns for column in required_columns):
             st.markdown("""
             📂 File uploaded and validated successfully!  
