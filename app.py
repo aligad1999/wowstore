@@ -170,6 +170,8 @@ def main():
         
         if missing_cols:
             st.error(f"Missing required columns: {missing_cols}")
+            st.error(f"File must contain the following columns: {missing_cols}")
+
         else:
             # Strip spaces, convert empty strings to NaN
             external_df = external_df.applymap(lambda x: str(x).strip() if pd.notna(x) else "")
@@ -220,8 +222,6 @@ def main():
                 time.sleep(0.1)
 
             st.success(f"✅ Updated {len(merged_df)} products and created {len(unmatched_skus)} new products.")
-        else:
-            st.error(f"File must contain the following columns: {required_columns}")
 
 if __name__ == "__main__":
     main()
