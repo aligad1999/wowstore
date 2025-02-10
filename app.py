@@ -72,11 +72,12 @@ class ShopifyProductSync:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
 
     def create_product(self, title, sku, price, inventory, brand):
-        """Create a new product in Shopify with the brand stored in metafields."""
+        """Create a new product in Shopify with the given brand."""
         data = {
             "product": {
                 "title": title,
                 "status": "draft",  
+                "vendor": brand, 
                 "variants": [{
                     "sku": sku,
                     "price": price,
@@ -84,32 +85,13 @@ class ShopifyProductSync:
                 }]
             }
         }
-        
         response = requests.post(self.base_url, headers=self.headers, json=data)
-        
         if response.status_code == 201:
-            product_id = response.json()["product"]["id"]
-            metafield_data = {
-                "metafield": {
-                    "namespace": "custom",
-                    "key": "brand",
-                    "value": brand,
-                    "type": "string"
-                }
-            }
-            metafield_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/products/{product_id}/metafields.json"
-            metafield_response = requests.post(metafield_url, headers=self.headers, json=metafield_data)
-            
-            if metafield_response.status_code == 201:
-                logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}' in metafields")
-                return response.json()
-            else:
-                logging.error(f"Failed to add metafield for product {title}: {metafield_response.text}")
-                return None
+            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}'")
+            return response.json()
         else:
             logging.error(f"Failed to create product {title}: {response.text}")
             return None
-
 
 
     def get_products(self):
