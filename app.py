@@ -71,30 +71,6 @@ class ShopifyProductSync:
         else:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
 
-   import streamlit as st
-import requests
-import pandas as pd
-import time
-import logging
-from datetime import datetime
-
-# Set up logging
-logging.basicConfig(
-    filename='shopify_product_sync.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-class ShopifyProductSync:
-    def __init__(self, store_name, access_token):
-        self.store_name = store_name
-        self.access_token = access_token
-        self.base_url = f"https://{store_name}.myshopify.com/admin/api/2024-01/products.json"
-        self.headers = {
-            "Content-Type": "application/json",
-            "X-Shopify-Access-Token": access_token
-        }
-
     def create_product(self, title, sku, price, inventory, brand):
         """Create a new product in Shopify with the brand stored in metafields."""
         data = {
@@ -116,7 +92,7 @@ class ShopifyProductSync:
             metafield_data = {
                 "metafield": {
                     "namespace": "custom",
-                    "key": "Brand",
+                    "key": "brand",
                     "value": brand,
                     "type": "string"
                 }
@@ -133,8 +109,6 @@ class ShopifyProductSync:
         else:
             logging.error(f"Failed to create product {title}: {response.text}")
             return None
-
-# The rest of the code remains unchanged
 
 
 
