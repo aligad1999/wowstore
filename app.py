@@ -96,7 +96,7 @@ class ShopifyProductSync:
             "product": {
                 "title": title,
                 "status": "draft",
-                "vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
+                #"vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
                 "variants": [{
                     "sku": sku,
                     "price": safe_price,
