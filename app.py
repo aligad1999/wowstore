@@ -162,8 +162,10 @@ def main():
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
     if uploaded_file is not None:
         external_df = pd.read_excel(uploaded_file)
-        external_df = external_df.fillna({"الإجمالي المتاح": 0, "Sales Price": 0})
         
+        for col in ["الإجمالي المتاح", "Sales Price"]:
+            external_df[col] = pd.to_numeric(external_df[col], errors="coerce").fillna(0)    
+            
         required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج','Brand']
         
         if all(column in external_df.columns for column in required_columns):
