@@ -77,7 +77,7 @@ class ShopifyProductSync:
             "product": {
                 "title": title,
                 "status": "draft",  
-                "vendor": brand, 
+                #"vendor": brand, 
                 "variants": [{
                     "sku": sku,
                     "price": price,
