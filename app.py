@@ -175,6 +175,7 @@ def main():
 
             # Perform merge
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
+            
             columns_to_keep = ["variant_id", "updated_at", "title","Brand", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
             show_merged_df = merged_df[columns_to_keep]
             
@@ -189,6 +190,13 @@ def main():
 
             progress_bar = st.progress(0)
             total_updates = len(merged_df) + len(unmatched_skus)
+
+
+            merged_df["الإجمالي المتاح"] = merged_df["الإجمالي المتاح"].replace({None: 0, "": 0}).fillna(0)
+            merged_df["Sales Price"] = merged_df["Sales Price"].replace({None: 0, "": 0}).fillna(0)
+            
+            unmatched_skus["الإجمالي المتاح"] = unmatched_skus["الإجمالي المتاح"].replace({None: 0, "": 0}).fillna(0)
+            unmatched_skus["Sales Price"] = unmatched_skus["Sales Price"].replace({None: 0, "": 0}).fillna(0)
 
             # Update existing products
             for i, (_, row) in enumerate(merged_df.iterrows()):
