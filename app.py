@@ -160,34 +160,15 @@ def main():
     st.write("Sync and update product prices and inventory on Shopify with a simple Excel upload. Automatically update existing products and create new ones as drafts if missing. Track progress in real time! 🚀")
              
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
-
     if uploaded_file is not None:
-        external_df = pd.read_excel(uploaded_file, dtype=str)  # Read everything as strings to catch unexpected values
+        external_df = pd.read_excel(uploaded_file)
+        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج','Brand']
         
-        # Ensure columns exist to avoid KeyError
-        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج', 'Brand']
-        missing_cols = [col for col in required_columns if col not in external_df.columns]
-        
-        if missing_cols:
-            st.error(f"Missing required columns: {missing_cols}")
-            st.error(f"File must contain the following columns: {missing_cols}")
-
-        else:
-            # Strip spaces, convert empty strings to NaN
-            external_df = external_df.applymap(lambda x: str(x).strip() if pd.notna(x) else "")
-    
-            # Replace empty strings or non-numeric values with 0
-            def clean_numeric(column):
-                return pd.to_numeric(column, errors="coerce").fillna(0).astype(float)
-    
-            external_df["الإجمالي المتاح"] = clean_numeric(external_df["الإجمالي المتاح"])
-            external_df["Sales Price"] = clean_numeric(external_df["Sales Price"])
-        
-            if all(column in external_df.columns for column in required_columns):
-                st.markdown("""
-                📂 File uploaded and validated successfully!  
-                Loading…
-                """)
+        if all(column in external_df.columns for column in required_columns):
+            st.markdown("""
+            📂 File uploaded and validated successfully!  
+            Loading…
+            """)
             
             df = sync.get_products()
             #st.write(f"Retrieved {len(df)} product variants.")
@@ -222,6 +203,8 @@ def main():
                 time.sleep(0.1)
 
             st.success(f"✅ Updated {len(merged_df)} products and created {len(unmatched_skus)} new products.")
+        else:
+            st.error(f"File must contain the following columns: {required_columns}")
 
 if __name__ == "__main__":
     main()
