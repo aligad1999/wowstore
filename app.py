@@ -71,6 +71,30 @@ class ShopifyProductSync:
         else:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
 
+   import streamlit as st
+import requests
+import pandas as pd
+import time
+import logging
+from datetime import datetime
+
+# Set up logging
+logging.basicConfig(
+    filename='shopify_product_sync.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+class ShopifyProductSync:
+    def __init__(self, store_name, access_token):
+        self.store_name = store_name
+        self.access_token = access_token
+        self.base_url = f"https://{store_name}.myshopify.com/admin/api/2024-01/products.json"
+        self.headers = {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": access_token
+        }
+
     def create_product(self, title, sku, price, inventory, brand):
         """Create a new product in Shopify with the brand stored in metafields."""
         data = {
@@ -81,22 +105,37 @@ class ShopifyProductSync:
                     "sku": sku,
                     "price": price,
                     "inventory_quantity": inventory
-                }],
-                "metafields": [{
+                }]
+            }
+        }
+        
+        response = requests.post(self.base_url, headers=self.headers, json=data)
+        
+        if response.status_code == 201:
+            product_id = response.json()["product"]["id"]
+            metafield_data = {
+                "metafield": {
                     "namespace": "custom",
                     "key": "Brand",
                     "value": brand,
                     "type": "string"
-                }]
+                }
             }
-        }
-        response = requests.post(self.base_url, headers=self.headers, json=data)
-        if response.status_code == 201:
-            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}' in metafields")
-            return response.json()
+            metafield_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/products/{product_id}/metafields.json"
+            metafield_response = requests.post(metafield_url, headers=self.headers, json=metafield_data)
+            
+            if metafield_response.status_code == 201:
+                logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}' in metafields")
+                return response.json()
+            else:
+                logging.error(f"Failed to add metafield for product {title}: {metafield_response.text}")
+                return None
         else:
             logging.error(f"Failed to create product {title}: {response.text}")
             return None
+
+# The rest of the code remains unchanged
+
 
 
     def get_products(self):
