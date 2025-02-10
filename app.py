@@ -84,7 +84,7 @@ class ShopifyProductSync:
                 }],
                 "metafields": [{
                     "namespace": "custom",
-                    "key": "brand",
+                    "key": "Brand",
                     "value": brand,
                     "type": "string"
                 }]
