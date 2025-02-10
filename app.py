@@ -163,6 +163,10 @@ def main():
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
     if uploaded_file is not None:
         external_df = pd.read_excel(uploaded_file)
+        
+        external_df["الإجمالي المتاح"] = pd.to_numeric(external_df["الإجمالي المتاح"], errors="coerce").fillna(0)
+        external_df["Sales Price"] = pd.to_numeric(external_df["Sales Price"], errors="coerce").fillna(0)
+        
         required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج','Brand']
         
         if all(column in external_df.columns for column in required_columns):
@@ -176,11 +180,6 @@ def main():
 
             # Perform merge
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
-
-            # Replace NaN values
-            merged_df.fillna({"Sales Price": 0, "الإجمالي المتاح": 0, "Brand": "Unknown"}, inplace=True)
-            merged_df.dropna(subset=["variant_id"], inplace=True)  # Ensure IDs are not missing
-
             columns_to_keep = ["variant_id", "updated_at", "title","Brand", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
             show_merged_df = merged_df[columns_to_keep]
             
@@ -188,8 +187,7 @@ def main():
             st.dataframe(show_merged_df)
 
             # Find unmatched SKUs
-            unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])].copy()
-            unmatched_skus.fillna({"Sales Price": 0, "الإجمالي المتاح": 0, "Brand": "Unknown", "اسم المنتج": "Untitled Product"}, inplace=True)
+            unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])]
             unmatched_skus["status"] = "draft"
             st.write(f"📌 {len(unmatched_skus)} new products will be created.")
             st.dataframe(unmatched_skus)
