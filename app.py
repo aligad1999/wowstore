@@ -176,6 +176,11 @@ def main():
 
             # Perform merge
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
+
+            # Replace NaN values
+            merged_df.fillna({"Sales Price": 0, "الإجمالي المتاح": 0, "Brand": "Unknown"}, inplace=True)
+            merged_df.dropna(subset=["variant_id"], inplace=True)  # Ensure IDs are not missing
+
             columns_to_keep = ["variant_id", "updated_at", "title","Brand", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
             show_merged_df = merged_df[columns_to_keep]
             
@@ -183,7 +188,10 @@ def main():
             st.dataframe(show_merged_df)
 
             # Find unmatched SKUs
-            unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])]
+            unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])].copy()
+            unmatched_skus.fillna({"Sales Price": 0, "الإجمالي المتاح": 0, "Brand": "Unknown", "اسم المنتج": "Untitled Product"}, inplace=True)
+            unmatched_skus["status"] = "draft"
+
             unmatched_skus["status"] = "draft"
             st.write(f"📌 {len(unmatched_skus)} new products will be created.")
             st.dataframe(unmatched_skus)
