@@ -190,9 +190,28 @@ def main():
             total_updates = len(merged_df) + len(unmatched_skus)
 
             # Handle missing values in numerical columns
+            def clean_numeric(value):
+                """Ensure numeric values are valid and not NaN/None/Empty."""
+                if pd.isna(value) or value == "" or value is None:
+                    return 0.0  # Convert missing values to zero
+                try:
+                    return float(value)
+                except ValueError:
+                    return 0.0  # If conversion fails, default to zero
+
             for col in ["الإجمالي المتاح", "Sales Price"]:
-                merged_df[col] = merged_df[col].apply(lambda x: 0 if pd.isna(x) or x == "" or x is None else x).astype(float)
-                unmatched_skus[col] = unmatched_skus[col].apply(lambda x: 0 if pd.isna(x) or x == "" or x is None else x).astype(float)
+                merged_df[col] = merged_df[col].apply(clean_numeric)
+                unmatched_skus[col] = unmatched_skus[col].apply(clean_numeric)
+
+            # Ensure all numbers are JSON-safe
+            merged_df.fillna(0, inplace=True)
+            unmatched_skus.fillna(0, inplace=True)
+
+            # Ensure all float values are valid
+            merged_df["الإجمالي المتاح"] = merged_df["الإجمالي المتاح"].astype(float)
+            merged_df["Sales Price"] = merged_df["Sales Price"].astype(float)
+            unmatched_skus["الإجمالي المتاح"] = unmatched_skus["الإجمالي المتاح"].astype(float)
+            unmatched_skus["Sales Price"] = unmatched_skus["Sales Price"].astype(float)
 
             # Update existing products
             for i, (_, row) in enumerate(merged_df.iterrows()):
