@@ -162,7 +162,7 @@ def main():
     uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
     if uploaded_file is not None:
         external_df = pd.read_excel(uploaded_file)
-        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج','Brand']
+        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج', 'Brand']
         
         if all(column in external_df.columns for column in required_columns):
             st.markdown("""
@@ -171,12 +171,10 @@ def main():
             """)
             
             df = sync.get_products()
-            #st.write(f"Retrieved {len(df)} product variants.")
 
             # Perform merge
             merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
-            
-            columns_to_keep = ["variant_id", "updated_at", "title","Brand", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
+            columns_to_keep = ["variant_id", "updated_at", "title", "Brand", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
             show_merged_df = merged_df[columns_to_keep]
             
             st.write(f"✅ {len(merged_df)} Updated products based on Excel data.")
@@ -191,12 +189,10 @@ def main():
             progress_bar = st.progress(0)
             total_updates = len(merged_df) + len(unmatched_skus)
 
-
-            merged_df["الإجمالي المتاح"] = merged_df["الإجمالي المتاح"].replace({None: 0, "": 0}).fillna(0)
-            merged_df["Sales Price"] = merged_df["Sales Price"].replace({None: 0, "": 0}).fillna(0)
-            
-            unmatched_skus["الإجمالي المتاح"] = unmatched_skus["الإجمالي المتاح"].replace({None: 0, "": 0}).fillna(0)
-            unmatched_skus["Sales Price"] = unmatched_skus["Sales Price"].replace({None: 0, "": 0}).fillna(0)
+            # Handle missing values in numerical columns
+            for col in ["الإجمالي المتاح", "Sales Price"]:
+                merged_df[col] = merged_df[col].apply(lambda x: 0 if pd.isna(x) or x == "" or x is None else x).astype(float)
+                unmatched_skus[col] = unmatched_skus[col].apply(lambda x: 0 if pd.isna(x) or x == "" or x is None else x).astype(float)
 
             # Update existing products
             for i, (_, row) in enumerate(merged_df.iterrows()):
