@@ -1,9 +1,18 @@
+# app.py
 import streamlit as st
 import requests
 import pandas as pd
 import time
 import logging
 from datetime import datetime
+import os
+
+# Set page config
+st.set_page_config(
+    page_title="Wow Store Product Sync Tool",
+    page_icon="🔄",
+    layout="wide"
+)
 
 # Set up logging
 logging.basicConfig(
@@ -13,7 +22,6 @@ logging.basicConfig(
 )
 
 class ShopifyProductSync:
-    
     def __init__(self, store_name, access_token):
         self.store_name = store_name
         self.access_token = access_token
@@ -22,55 +30,7 @@ class ShopifyProductSync:
             "Content-Type": "application/json",
             "X-Shopify-Access-Token": access_token
         }
-        # Get and store location_id during initialization
         self.location_id = self.get_location_id()
-
-    def process_products_to_dataframe(self, products):
-        """Convert products to DataFrame with specific columns"""
-        processed_data = []
-
-        for product in products:
-            for variant in product.get('variants', []):
-                product_data = {
-                    'product_id': product.get('id'),
-                    'title': product.get('title'),
-                    'variant_id': variant.get('id'),
-                    'price': float(variant.get('price', 0)),
-                    'sku': variant.get('sku'),
-                    'inventory_quantity': variant.get('inventory_quantity'),
-                    'created_at': product.get('created_at'),
-                    'updated_at': product.get('updated_at'),
-                    'status': product.get('status', 'active')
-                }
-
-                if product_data['price'] == 0:
-                    self.update_product_variant(variant.get('id'), 0, 0)
-                    product_data['inventory_quantity'] = 0
-                    product_data['status'] = "draft"
-                    logging.info(f"Set inventory to 0 and status to draft for variant {variant.get('id')} with zero price")
-
-                processed_data.append(product_data)
-
-        df = pd.DataFrame(processed_data)
-        df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce', utc=True)
-        df['updated_at'] = pd.to_datetime(df['updated_at'], errors='coerce', utc=True)
-
-        return df
-
-    def safe_float(self, value, default=0):
-        """Safely convert value to float, handling None, NaN, and string numbers with commas"""
-        if pd.isna(value) or value == '':
-            return default
-        if isinstance(value, str):
-            # Remove commas and spaces
-            value = value.replace(',', '').strip()
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return default
-            
-
-
 
     def get_location_id(self):
         """Get the first location ID from the store"""
@@ -113,6 +73,43 @@ class ShopifyProductSync:
             logging.error(f"Error setting inventory: {str(e)}")
             return False
 
+    def process_products_to_dataframe(self, products):
+        """Convert products to DataFrame with specific columns"""
+        processed_data = []
+
+        for product in products:
+            for variant in product.get('variants', []):
+                product_data = {
+                    'product_id': product.get('id'),
+                    'title': product.get('title'),
+                    'variant_id': variant.get('id'),
+                    'price': float(variant.get('price', 0)),
+                    'sku': variant.get('sku'),
+                    'inventory_quantity': variant.get('inventory_quantity'),
+                    'inventory_item_id': variant.get('inventory_item_id'),
+                    'created_at': product.get('created_at'),
+                    'updated_at': product.get('updated_at'),
+                    'status': product.get('status', 'active')
+                }
+                processed_data.append(product_data)
+
+        df = pd.DataFrame(processed_data)
+        df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce', utc=True)
+        df['updated_at'] = pd.to_datetime(df['updated_at'], errors='coerce', utc=True)
+
+        return df
+
+    def safe_float(self, value, default=0):
+        """Safely convert value to float, handling None, NaN, and string numbers with commas"""
+        if pd.isna(value) or value == '':
+            return default
+        if isinstance(value, str):
+            value = value.replace(',', '').strip()
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+
     def update_product_variant(self, variant_id, new_price, new_inventory):
         """Update price and inventory of a product variant on Shopify"""
         try:
@@ -154,36 +151,6 @@ class ShopifyProductSync:
         except Exception as e:
             logging.error(f"Error in update_product_variant: {str(e)}")
             return False
-    
-    def create_product(self, title, sku, price, inventory, brand):
-        """Create a new product in Shopify with the given brand."""
-        # Convert and validate the values
-        safe_price = self.safe_float(price)
-        safe_inventory = int(self.safe_float(inventory))  # Convert to integer for inventory
-
-        data = {
-            "product": {
-                "title": title,
-                "status": "draft",
-                #"vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
-                "variants": [{
-                    "sku": sku,
-                    "price": safe_price,
-                    "inventory_quantity": safe_inventory,
-                    "inventory_management": "shopify",  # Enable inventory tracking
-                    "inventory_policy": "deny",  # Prevent selling when out of stock
-                    "requires_shipping": True
-                    
-                }]
-            }
-        }
-        response = requests.post(self.base_url, headers=self.headers, json=data)
-        if response.status_code == 201:
-            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}'")
-            return response.json()
-        else:
-            logging.error(f"Failed to create product {title}: {response.text}")
-            return None
 
     def get_products(self):
         """Retrieve products from Shopify API"""
@@ -234,7 +201,34 @@ class ShopifyProductSync:
             logging.error(f"Error retrieving products: {str(e)}")
             raise
 
+ def create_product(self, title, sku, price, inventory, brand):
+        """Create a new product in Shopify with the given brand."""
+        # Convert and validate the values
+        safe_price = self.safe_float(price)
+        safe_inventory = int(self.safe_float(inventory))  # Convert to integer for inventory
 
+        data = {
+            "product": {
+                "title": title,
+                "status": "draft",
+                "vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
+                "variants": [{
+                    "sku": sku,
+                    "price": safe_price,
+                    "inventory_quantity": safe_inventory,
+                    "inventory_management": "shopify",  # Enable inventory tracking
+                    "inventory_policy": "deny",  # Prevent selling when out of stock
+                    "requires_shipping": True
+                }]
+            }
+        }
+        response = requests.post(self.base_url, headers=self.headers, json=data)
+        if response.status_code == 201:
+            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}'")
+            return response.json()
+        else:
+            logging.error(f"Failed to create product {title}: {response.text}")
+            return None
 
 def main():
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -277,18 +271,26 @@ def main():
                 # Perform merge
                 merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
                 
+                # Find unmatched SKUs (new products)
+                unmatched_skus = external_df[~external_df['اسم البحث'].isin(df['sku'])]
+                
                 # Show preview of updates
-                st.write(f"Found {len(merged_df)} products to update:")
+                st.write(f"✅ Found {len(merged_df)} products to update:")
                 st.dataframe(merged_df[["title", "sku", "Sales Price", "الإجمالي المتاح"]])
+                
+                st.write(f"📌 Found {len(unmatched_skus)} new products to create:")
+                st.dataframe(unmatched_skus[['اسم المنتج', 'اسم البحث', 'Sales Price', 'الإجمالي المتاح', 'Brand']])
 
-                # Update existing products with progress tracking
+                # Calculate total operations
+                total_operations = len(merged_df) + len(unmatched_skus)
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
+                # Update existing products
                 for index, row in merged_df.iterrows():
-                    progress = (index + 1) / len(merged_df)
+                    progress = (index + 1) / total_operations
                     progress_bar.progress(progress)
-                    status_text.text(f"Updating product {index + 1} of {len(merged_df)}: {row['title']}")
+                    status_text.text(f"Updating existing product {index + 1} of {len(merged_df)}: {row['title']}")
                     
                     success = sync.update_product_variant(
                         row['variant_id'],
@@ -301,7 +303,27 @@ def main():
                     
                     time.sleep(0.5)  # Respect API rate limits
 
-                st.success("✅ Updates completed!")
+                # Create new products
+                for index, row in unmatched_skus.iterrows():
+                    current_index = len(merged_df) + index + 1
+                    progress = current_index / total_operations
+                    progress_bar.progress(progress)
+                    status_text.text(f"Creating new product {index + 1} of {len(unmatched_skus)}: {row['اسم المنتج']}")
+                    
+                    result = sync.create_product(
+                        title=row['اسم المنتج'],
+                        sku=row['اسم البحث'],
+                        price=row['Sales Price'],
+                        inventory=row['الإجمالي المتاح'],
+                        brand=row['Brand']
+                    )
+                    
+                    if not result:
+                        st.warning(f"Failed to create product {row['اسم المنتج']}. Check the logs for details.")
+                    
+                    time.sleep(0.5)  # Respect API rate limits
+
+                st.success(f"✅ Process completed! Updated {len(merged_df)} products and created {len(unmatched_skus)} new products.")
                 
             else:
                 st.error(f"File must contain the following columns: {required_columns}")
@@ -309,7 +331,6 @@ def main():
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
         logging.error(f"Main function error: {str(e)}")
-
 
 if __name__ == "__main__":
     main()
