@@ -35,6 +35,7 @@ class ShopifyProductSync:
                     'price': float(variant.get('price', 0)),
                     'sku': variant.get('sku'),
                     'inventory_quantity': variant.get('inventory_quantity'),
+                    'inventory_item_id': variant.get('inventory_item_id'),  # Added this field
                     'created_at': product.get('created_at'),
                     'updated_at': product.get('updated_at'),
                     'status': product.get('status', 'active')
@@ -66,22 +67,82 @@ class ShopifyProductSync:
         except (ValueError, TypeError):
             return default
 
+    def adjust_inventory(self, inventory_item_id, adjustment):
+        """Adjust inventory levels using the inventory adjust endpoint"""
+        adjust_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/inventory_levels/adjust.json"
+        
+        data = {
+            "inventory_item_id": inventory_item_id,
+            "location_id": self.get_location_id(),  # You'll need to implement this method
+            "available_adjustment": adjustment
+        }
+        
+        response = requests.post(adjust_url, headers=self.headers, json=data)
+        if response.status_code == 200:
+            logging.info(f"Adjusted inventory for item {inventory_item_id} by {adjustment}")
+            return True
+        else:
+            logging.error(f"Failed to adjust inventory for item {inventory_item_id}: {response.text}")
+            return False
+
+    def get_location_id(self):
+        """Get the first location ID from the store"""
+        url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/locations.json"
+        response = requests.get(url, headers=self.headers)
+        
+        if response.status_code == 200:
+            locations = response.json().get('locations', [])
+            if locations:
+                return locations[0]['id']  # Return the first location ID
+        
+        logging.error("Failed to get location ID")
+        return None
+
     def update_product_variant(self, variant_id, new_price, new_inventory):
         """Update price and inventory of a product variant on Shopify"""
+        # Get current variant details to get the inventory_item_id
+        variant_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
+        variant_response = requests.get(variant_url, headers=self.headers)
+        
+        if variant_response.status_code != 200:
+            logging.error(f"Failed to get variant details for {variant_id}")
+            return
+
+        current_variant = variant_response.json()['variant']
+        inventory_item_id = current_variant['inventory_item_id']
+        current_inventory = current_variant['inventory_quantity']
+
+        # Convert and validate the values
+        safe_price = self.safe_float(new_price)
+        safe_inventory = int(self.safe_float(new_inventory))
+
+        # Update price
         update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
         data = {
             "variant": {
                 "id": variant_id,
-                "price": new_price,
-                "inventory_quantity": new_inventory
+                "price": safe_price,
+                "inventory_management": "shopify",
+                "inventory_policy": "deny",
+                "requires_shipping": True
             }
         }
+        
         response = requests.put(update_url, headers=self.headers, json=data)
-        if response.status_code == 200:
-            logging.info(f"Updated variant {variant_id} with price {new_price} and inventory {new_inventory}")
-        else:
+        if response.status_code != 200:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
+            return
 
+        # Calculate inventory adjustment
+        inventory_adjustment = safe_inventory - current_inventory
+        
+        # Adjust inventory if there's a difference
+        if inventory_adjustment != 0:
+            self.adjust_inventory(inventory_item_id, inventory_adjustment)
+
+        logging.info(f"Updated variant {variant_id} with price {safe_price} and inventory adjustment {inventory_adjustment}")
+
+    
     def create_product(self, title, sku, price, inventory, brand):
         """Create a new product in Shopify with the given brand."""
         # Convert and validate the values
