@@ -92,8 +92,6 @@ class ShopifyProductSync:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
 
     def update_inventory_levels(self, variant_id, new_inventory):
-    """Update inventory quantity using Shopify's inventory_levels API"""
-
         # Get the location ID first
         location_id = self.get_location_id()
         if not location_id:
@@ -119,7 +117,6 @@ class ShopifyProductSync:
             logging.error(f"Failed to update inventory: {response.text}")
 
     def get_location_id(self):
-    """Retrieve the first available location ID"""
         url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/locations.json"
         response = requests.get(url, headers=self.headers)
         
@@ -130,7 +127,6 @@ class ShopifyProductSync:
         return None
 
     def get_inventory_item_id(self, variant_id):
-        """Get inventory_item_id for a given variant ID"""
         url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
         response = requests.get(url, headers=self.headers)
         
