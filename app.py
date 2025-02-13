@@ -303,7 +303,7 @@ def main():
                     )
                     
                     if not success:
-                        st.warning(f"Failed to update {row['sku']}. Check the logs for details.")
+                        #st.warning(f"Failed to update {row['sku']}. Check the logs for details.")
                     
                     time.sleep(0.5)  # Respect API rate limits
 
