@@ -68,26 +68,30 @@ class ShopifyProductSync:
 
     def update_product_variant(self, variant_id, new_price, new_inventory):
         """Update price and inventory of a product variant on Shopify"""
-        # Convert and validate the values
+    
         safe_price = self.safe_float(new_price)
         safe_inventory = int(self.safe_float(new_inventory))  # Convert to integer for inventory
-
+    
         update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
         data = {
             "variant": {
                 "id": variant_id,
                 "price": safe_price,
-                "inventory_quantity": safe_inventory,
-                #"inventory_management": "shopify",  # Enable inventory tracking
-                #"inventory_policy": "deny",  # Prevent selling when out of stock
-                #"requires_shipping": True
+                "inventory_management": "shopify",  # Ensure Shopify manages inventory
+                "inventory_policy": "deny",  # Prevent overselling
             }
         }
+    
         response = requests.put(update_url, headers=self.headers, json=data)
         if response.status_code == 200:
-            logging.info(f"Updated variant {variant_id} with price {safe_price} and inventory {safe_inventory}")
+            logging.info(f"Updated variant {variant_id} price to {safe_price}")
+    
+            # ✅ After updating the variant, update stock using inventory_levels API
+            self.update_inventory_levels(variant_id, safe_inventory)
         else:
             logging.error(f"Failed to update variant {variant_id}: {response.text}")
+
+    
 
     def create_product(self, title, sku, price, inventory, brand):
         """Create a new product in Shopify with the given brand."""
