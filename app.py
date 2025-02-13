@@ -98,7 +98,7 @@ class ShopifyProductSync:
             inventory_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/inventory_levels/set.json"
             inventory_data = {
                 "inventory_item_id": inventory_item_id,
-                "location_id": YOUR_LOCATION_ID,  # Replace with your Shopify location ID
+                "location_id": 76286853358,  # Replace with your Shopify location ID
                 "available": int(new_inventory)
             }
             inventory_response = requests.post(inventory_url, headers=self.headers, json=inventory_data)
