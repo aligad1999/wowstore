@@ -65,30 +65,52 @@ class ShopifyProductSync:
             return float(value)
         except (ValueError, TypeError):
             return default
+            
 
     def update_product_variant(self, variant_id, new_price, new_inventory):
         """Update price and inventory of a product variant on Shopify"""
-        # Convert and validate the values
         safe_price = self.safe_float(new_price)
-        safe_inventory = int(self.safe_float(new_inventory))  # Convert to integer for inventory
-
+    
+        # Update price using the variants API
         update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
         data = {
             "variant": {
                 "id": variant_id,
-                "price": safe_price,
-                "inventory_quantity": safe_inventory,
-                #"inventory_management": "shopify",  # Enable inventory tracking
-                #"inventory_policy": "deny",  # Prevent selling when out of stock
-                #"requires_shipping": True
+                "price": safe_price
             }
         }
         response = requests.put(update_url, headers=self.headers, json=data)
+        
         if response.status_code == 200:
-            logging.info(f"Updated variant {variant_id} with price {safe_price} and inventory {safe_inventory}")
+            logging.info(f"Updated variant {variant_id} price to {safe_price}")
         else:
-            logging.error(f"Failed to update variant {variant_id}: {response.text}")
-
+            logging.error(f"Failed to update price for variant {variant_id}: {response.text}")
+    
+        # Fetch the inventory_item_id for the variant
+        variant_info_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
+        variant_response = requests.get(variant_info_url, headers=self.headers)
+        
+        if variant_response.status_code == 200:
+            variant_data = variant_response.json()
+            inventory_item_id = variant_data["variant"]["inventory_item_id"]
+    
+            # Update inventory using the inventory_levels API
+            inventory_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/inventory_levels/set.json"
+            inventory_data = {
+                "inventory_item_id": inventory_item_id,
+                "location_id": YOUR_LOCATION_ID,  # Replace with your Shopify location ID
+                "available": int(new_inventory)
+            }
+            inventory_response = requests.post(inventory_url, headers=self.headers, json=inventory_data)
+    
+            if inventory_response.status_code == 200:
+                logging.info(f"Updated inventory for variant {variant_id} to {new_inventory}")
+            else:
+                logging.error(f"Failed to update inventory for variant {variant_id}: {inventory_response.text}")
+        else:
+            logging.error(f"Failed to retrieve inventory item ID for variant {variant_id}: {variant_response.text}")
+    
+        
     def create_product(self, title, sku, price, inventory, brand):
         """Create a new product in Shopify with the given brand."""
         # Convert and validate the values
