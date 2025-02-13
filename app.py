@@ -253,7 +253,7 @@ def main():
         uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
         if uploaded_file is not None:
             external_df = pd.read_excel(uploaded_file)
-            required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج', 'Brand']
+            required_columns = ['اسم البحث', 'المخزون الفعلي', 'Sales Price', 'اسم المنتج', 'Brand']
             
             if all(column in external_df.columns for column in required_columns):
                 st.markdown("""
@@ -262,7 +262,7 @@ def main():
                 """)
                 
                 # Clean up the data
-                external_df['الإجمالي المتاح'] = external_df['الإجمالي المتاح'].apply(sync.safe_float)
+                external_df['المخزون الفعلي'] = external_df['المخزون الفعلي'].apply(sync.safe_float)
                 external_df['Sales Price'] = external_df['Sales Price'].apply(sync.safe_float)
                 external_df['Brand'] = external_df['Brand'].fillna('').astype(str).str.strip()
                 external_df['اسم البحث'] = external_df['اسم البحث'].astype(str).str.strip().str.replace(" ", "")
@@ -280,10 +280,10 @@ def main():
                 
                 # Show preview of updates
                 st.write(f"✅ Found {len(merged_df)} products to update:")
-                st.dataframe(merged_df[["title", "sku", "Sales Price", "الإجمالي المتاح"]])
+                st.dataframe(merged_df[["title", "sku", "Sales Price", "المخزون الفعلي"]])
                 
                 st.write(f"📌 Found {len(unmatched_skus)} new products to create:")
-                st.dataframe(unmatched_skus[['اسم المنتج', 'اسم البحث', 'Sales Price', 'الإجمالي المتاح', 'Brand']])
+                st.dataframe(unmatched_skus[['اسم المنتج', 'اسم البحث', 'Sales Price', 'المخزون الفعلي', 'Brand']])
 
                 # Calculate total operations
                 total_operations = len(merged_df) + len(unmatched_skus)
@@ -299,7 +299,7 @@ def main():
                     success = sync.update_product_variant(
                         row['variant_id'],
                         row['Sales Price'],
-                        row['الإجمالي المتاح']
+                        row['المخزون الفعلي']
                     )
                     
                     if not success:
@@ -319,7 +319,7 @@ def main():
                         title=row['اسم المنتج'],
                         sku=row['اسم البحث'],
                         price=row['Sales Price'],
-                        inventory=row['الإجمالي المتاح'],
+                        inventory=row['المخزون الفعلي'],
                         brand=row['Brand']
                     )
                     
