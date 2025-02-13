@@ -201,34 +201,34 @@ class ShopifyProductSync:
             logging.error(f"Error retrieving products: {str(e)}")
             raise
 
- def create_product(self, title, sku, price, inventory, brand):
-        """Create a new product in Shopify with the given brand."""
-        # Convert and validate the values
-        safe_price = self.safe_float(price)
-        safe_inventory = int(self.safe_float(inventory))  # Convert to integer for inventory
-
-        data = {
-            "product": {
-                "title": title,
-                "status": "draft",
-                "vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
-                "variants": [{
-                    "sku": sku,
-                    "price": safe_price,
-                    "inventory_quantity": safe_inventory,
-                    "inventory_management": "shopify",  # Enable inventory tracking
-                    "inventory_policy": "deny",  # Prevent selling when out of stock
-                    "requires_shipping": True
-                }]
+     def create_product(self, title, sku, price, inventory, brand):
+            """Create a new product in Shopify with the given brand."""
+            # Convert and validate the values
+            safe_price = self.safe_float(price)
+            safe_inventory = int(self.safe_float(inventory))  # Convert to integer for inventory
+    
+            data = {
+                "product": {
+                    "title": title,
+                    "status": "draft",
+                    "vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
+                    "variants": [{
+                        "sku": sku,
+                        "price": safe_price,
+                        "inventory_quantity": safe_inventory,
+                        "inventory_management": "shopify",  # Enable inventory tracking
+                        "inventory_policy": "deny",  # Prevent selling when out of stock
+                        "requires_shipping": True
+                    }]
+                }
             }
-        }
-        response = requests.post(self.base_url, headers=self.headers, json=data)
-        if response.status_code == 201:
-            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}'")
-            return response.json()
-        else:
-            logging.error(f"Failed to create product {title}: {response.text}")
-            return None
+            response = requests.post(self.base_url, headers=self.headers, json=data)
+            if response.status_code == 201:
+                logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}'")
+                return response.json()
+            else:
+                logging.error(f"Failed to create product {title}: {response.text}")
+                return None
 
 def main():
     col1, col2, col3 = st.columns([1, 2, 1])
