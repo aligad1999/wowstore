@@ -212,7 +212,7 @@ class ShopifyProductSync:
             "product": {
                 "title": title,
                 "status": "draft",
-                "vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
+                #"vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
                 "variants": [{
                     "sku": sku,
                     "price": safe_price,
@@ -265,9 +265,12 @@ def main():
                 external_df['الإجمالي المتاح'] = external_df['الإجمالي المتاح'].apply(sync.safe_float)
                 external_df['Sales Price'] = external_df['Sales Price'].apply(sync.safe_float)
                 external_df['Brand'] = external_df['Brand'].fillna('').astype(str).str.strip()
-                
+                external_df['اسم البحث'] = external_df['اسم البحث'].astype(str).str.strip().str.replace(" ", "")
+
                 # Get existing products
                 df = sync.get_products()
+                
+                df['sku'] = df['sku'].astype(str).str.strip().str.replace(" ", "")
 
                 # Perform merge
                 merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
@@ -300,7 +303,7 @@ def main():
                     )
                     
                     if not success:
-                        st.warning(f"Failed to update {row['title']}. Check the logs for details.")
+                        st.warning(f"Failed to update {row['sku']}. Check the logs for details.")
                     
                     time.sleep(0.5)  # Respect API rate limits
 
@@ -320,7 +323,7 @@ def main():
                     )
                     
                     if not result:
-                        st.warning(f"Failed to create product {row['اسم المنتج']}. Check the logs for details.")
+                        st.warning(f"Failed to create product {row['اسم البحث'']}. Check the logs for details.")
                     
                     time.sleep(0.5)  # Respect API rate limits
 
