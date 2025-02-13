@@ -13,6 +13,7 @@ logging.basicConfig(
 )
 
 class ShopifyProductSync:
+    
     def __init__(self, store_name, access_token):
         self.store_name = store_name
         self.access_token = access_token
@@ -21,6 +22,8 @@ class ShopifyProductSync:
             "Content-Type": "application/json",
             "X-Shopify-Access-Token": access_token
         }
+        # Get and store location_id during initialization
+        self.location_id = self.get_location_id()
 
     def process_products_to_dataframe(self, products):
         """Convert products to DataFrame with specific columns"""
@@ -67,71 +70,90 @@ class ShopifyProductSync:
             return default
             
 
+
+
     def get_location_id(self):
-        """Fetch the first available location ID"""
+        """Get the first location ID from the store"""
         url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/locations.json"
         response = requests.get(url, headers=self.headers)
-    
+        
         if response.status_code == 200:
-            locations = response.json().get("locations", [])
+            locations = response.json().get('locations', [])
             if locations:
-                return locations[0]["id"]  # Use the first location
+                location_id = locations[0]['id']
+                logging.info(f"Retrieved location ID: {location_id}")
+                return location_id
+        
+        logging.error("Failed to get location ID")
+        return None
+
+    def set_inventory_level(self, inventory_item_id, new_quantity):
+        """Set inventory level directly using the inventory levels set endpoint"""
+        if not self.location_id:
+            logging.error("No location ID available")
+            return False
+
+        set_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/inventory_levels/set.json"
+        
+        data = {
+            "location_id": self.location_id,
+            "inventory_item_id": inventory_item_id,
+            "available": int(new_quantity)
+        }
+        
+        try:
+            response = requests.post(set_url, headers=self.headers, json=data)
+            if response.status_code == 200:
+                logging.info(f"Successfully set inventory for item {inventory_item_id} to {new_quantity}")
+                return True
             else:
-                logging.error("No locations found in Shopify store.")
-                return None
-        else:
-            logging.error(f"Failed to retrieve locations: {response.text}")
-            return None
+                logging.error(f"Failed to set inventory: Status {response.status_code}, Response: {response.text}")
+                return False
+        except Exception as e:
+            logging.error(f"Error setting inventory: {str(e)}")
+            return False
 
     def update_product_variant(self, variant_id, new_price, new_inventory):
         """Update price and inventory of a product variant on Shopify"""
-        safe_price = self.safe_float(new_price)
-        safe_inventory = int(self.safe_float(new_inventory))
-    
-        # Step 1: Update Price
-        update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
-        price_data = {
-            "variant": {
-                "id": variant_id,
-                "price": safe_price
-            }
-        }
-        price_response = requests.put(update_url, headers=self.headers, json=price_data)
-    
-        if price_response.status_code == 200:
-            logging.info(f"Updated variant {variant_id} price to {safe_price}")
-        else:
-            logging.error(f"Failed to update price for variant {variant_id}: {price_response.text}")
-    
-        # Step 2: Get inventory_item_id
-        variant_info_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
-        variant_response = requests.get(variant_info_url, headers=self.headers)
-    
-        if variant_response.status_code == 200:
-            inventory_item_id = variant_response.json()["variant"]["inventory_item_id"]
-    
-            # Step 3: Get location_id
-            location_id = self.get_location_id()
-            if not location_id:
-                logging.error("No valid location_id found. Inventory update skipped.")
-                return
-    
-            # Step 4: Update Inventory
-            inventory_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/inventory_levels/set.json"
-            inventory_data = {
-                "inventory_item_id": inventory_item_id,
-                "location_id": location_id,
-                "available": safe_inventory
-            }
-            inventory_response = requests.post(inventory_url, headers=self.headers, json=inventory_data)
-    
-            if inventory_response.status_code == 200:
-                logging.info(f"Updated inventory for variant {variant_id} to {safe_inventory}")
-            else:
-                logging.error(f"Failed to update inventory for variant {variant_id}: {inventory_response.text}")
-        else:
-            logging.error(f"Failed to retrieve inventory item ID for variant {variant_id}: {variant_response.text}")
+        try:
+            # First, get the variant details to get the inventory_item_id
+            variant_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
+            variant_response = requests.get(variant_url, headers=self.headers)
+            
+            if variant_response.status_code != 200:
+                logging.error(f"Failed to get variant details for {variant_id}")
+                return False
 
+            variant_data = variant_response.json()['variant']
+            inventory_item_id = variant_data['inventory_item_id']
+
+            # Update price
+            update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
+            price_data = {
+                "variant": {
+                    "id": variant_id,
+                    "price": self.safe_float(new_price)
+                }
+            }
+            
+            price_response = requests.put(update_url, headers=self.headers, json=price_data)
+            if price_response.status_code != 200:
+                logging.error(f"Failed to update price for variant {variant_id}")
+                return False
+
+            # Update inventory separately
+            inventory_success = self.set_inventory_level(inventory_item_id, new_inventory)
+            
+            if inventory_success:
+                logging.info(f"Successfully updated variant {variant_id} price and inventory")
+                return True
+            else:
+                logging.error(f"Failed to update inventory for variant {variant_id}")
+                return False
+
+        except Exception as e:
+            logging.error(f"Error in update_product_variant: {str(e)}")
+            return False
     
     def create_product(self, title, sku, price, inventory, brand):
         """Create a new product in Shopify with the given brand."""
@@ -212,6 +234,8 @@ class ShopifyProductSync:
             logging.error(f"Error retrieving products: {str(e)}")
             raise
 
+
+
 def main():
     col1, col2, col3 = st.columns([1, 2, 1])
     
@@ -223,59 +247,69 @@ def main():
     store_name = st.secrets["store_name"]
     access_token = st.secrets["access_token"]
 
-    sync = ShopifyProductSync(store_name, access_token)
-    st.write("Sync and update product prices and inventory on Shopify with a simple Excel upload. Automatically update existing products and create new ones as drafts if missing. Track progress in real time! 🚀")
-             
-    uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
-    if uploaded_file is not None:
-        external_df = pd.read_excel(uploaded_file)
-        required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج', 'Brand']
-        
-        if all(column in external_df.columns for column in required_columns):
-            st.markdown("""
-            📂 File uploaded and validated successfully!  
-            Loading…
-            """)
+    try:
+        sync = ShopifyProductSync(store_name, access_token)
+        if not sync.location_id:
+            st.error("Failed to get store location ID. Please check your store settings.")
+            return
             
-            # Clean up the data
-            external_df['الإجمالي المتاح'] = external_df['الإجمالي المتاح'].apply(sync.safe_float)
-            external_df['Sales Price'] = external_df['Sales Price'].apply(sync.safe_float)
-            external_df['Brand'] = external_df['Brand'].fillna('').astype(str).str.strip()
+        st.write("Sync and update product prices and inventory on Shopify with a simple Excel upload. Automatically update existing products and create new ones as drafts if missing. Track progress in real time! 🚀")
+                 
+        uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+        if uploaded_file is not None:
+            external_df = pd.read_excel(uploaded_file)
+            required_columns = ['اسم البحث', 'الإجمالي المتاح', 'Sales Price', 'اسم المنتج', 'Brand']
             
-            df = sync.get_products()
+            if all(column in external_df.columns for column in required_columns):
+                st.markdown("""
+                📂 File uploaded and validated successfully!  
+                Loading…
+                """)
+                
+                # Clean up the data
+                external_df['الإجمالي المتاح'] = external_df['الإجمالي المتاح'].apply(sync.safe_float)
+                external_df['Sales Price'] = external_df['Sales Price'].apply(sync.safe_float)
+                external_df['Brand'] = external_df['Brand'].fillna('').astype(str).str.strip()
+                
+                # Get existing products
+                df = sync.get_products()
 
-            # Perform merge
-            merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
-            columns_to_keep = ["variant_id", "updated_at", "title", "Brand", "اسم البحث", "الإجمالي المتاح", "Sales Price"]
-            show_merged_df = merged_df[columns_to_keep]
-            
-            st.write(f"✅ {len(merged_df)} Updated products based on Excel data.")
-            st.dataframe(show_merged_df)
+                # Perform merge
+                merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
+                
+                # Show preview of updates
+                st.write(f"Found {len(merged_df)} products to update:")
+                st.dataframe(merged_df[["title", "sku", "Sales Price", "الإجمالي المتاح"]])
 
-            # Find unmatched SKUs
-            unmatched_skus = external_df[~external_df["اسم البحث"].isin(df["sku"])]
-            unmatched_skus["status"] = "draft"
-            st.write(f"📌 {len(unmatched_skus)} new products will be created.")
-            st.dataframe(unmatched_skus)
+                # Update existing products with progress tracking
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                for index, row in merged_df.iterrows():
+                    progress = (index + 1) / len(merged_df)
+                    progress_bar.progress(progress)
+                    status_text.text(f"Updating product {index + 1} of {len(merged_df)}: {row['title']}")
+                    
+                    success = sync.update_product_variant(
+                        row['variant_id'],
+                        row['Sales Price'],
+                        row['الإجمالي المتاح']
+                    )
+                    
+                    if not success:
+                        st.warning(f"Failed to update {row['title']}. Check the logs for details.")
+                    
+                    time.sleep(0.5)  # Respect API rate limits
 
-            progress_bar = st.progress(0)
-            total_updates = len(merged_df) + len(unmatched_skus)
+                st.success("✅ Updates completed!")
+                
+            else:
+                st.error(f"File must contain the following columns: {required_columns}")
+                
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        logging.error(f"Main function error: {str(e)}")
 
-            # Update existing products
-            for i, (_, row) in enumerate(merged_df.iterrows()):
-                sync.update_product_variant(row['variant_id'], row['Sales Price'], row['الإجمالي المتاح'])
-                progress_bar.progress((i + 1) / total_updates)
-                time.sleep(0.1)
-
-            # Create new products
-            for i, (_, row) in enumerate(unmatched_skus.iterrows(), start=len(merged_df)):
-                sync.create_product(row["اسم المنتج"], row["اسم البحث"], row["Sales Price"], row["الإجمالي المتاح"], row["Brand"])
-                progress_bar.progress((i + 1) / total_updates)
-                time.sleep(0.1)
-
-            st.success(f"✅ Updated {len(merged_df)} products and created {len(unmatched_skus)} new products.")
-        else:
-            st.error(f"File must contain the following columns: {required_columns}")
 
 if __name__ == "__main__":
     main()
