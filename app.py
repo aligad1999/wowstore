@@ -22,6 +22,55 @@ class ShopifyProductSync:
             "X-Shopify-Access-Token": access_token
         }
 
+    
+    def get_products(self):
+        """Retrieve products from Shopify API"""
+        try:
+            products = []
+            params = {'limit': 250}
+            page_count = 1
+
+            while True:
+                response = requests.get(self.base_url, headers=self.headers, params=params)
+                logging.info(f"Fetching page {page_count}")
+
+                if response.status_code == 200:
+                    data = response.json()
+                    current_products = data.get('products', [])
+                    products.extend(current_products)
+                    print(f"Retrieved {len(current_products)} products from page {page_count}")
+
+                    link_header = response.headers.get('Link', '')
+                    if 'rel="next"' not in link_header:
+                        break
+
+                    next_link = [l.split(';')[0].strip('<> ') for l in link_header.split(',') if 'rel="next"' in l]
+                    if not next_link:
+                        break
+
+                    try:
+                        params = dict(param.split('=') for param in next_link[0].split('?')[1].split('&'))
+                    except Exception as e:
+                        logging.error(f"Error parsing next page parameters: {str(e)}")
+                        break
+
+                    time.sleep(0.5)
+                    page_count += 1
+
+                elif response.status_code == 429:
+                    retry_after = int(response.headers.get('Retry-After', 10))
+                    time.sleep(retry_after)
+                    continue
+                else:
+                    logging.error(f"API request failed with status code: {response.status_code}")
+                    response.raise_for_status()
+
+            print(f"Successfully retrieved {len(products)} products")
+            return self.process_products_to_dataframe(products)
+        
+        except Exception as e:
+            logging.error(f"Error retrieving products: {str(e)}")
+            raise
     def process_products_to_dataframe(self, products):
         """Convert products to DataFrame with specific columns"""
         processed_data = []
@@ -137,54 +186,7 @@ def update_product_variant(self, variant_id, new_price, new_inventory):
             logging.error(f"Failed to create product {title}: {response.text}")
             return None
 
-    def get_products(self):
-        """Retrieve products from Shopify API"""
-        try:
-            products = []
-            params = {'limit': 250}
-            page_count = 1
 
-            while True:
-                response = requests.get(self.base_url, headers=self.headers, params=params)
-                logging.info(f"Fetching page {page_count}")
-
-                if response.status_code == 200:
-                    data = response.json()
-                    current_products = data.get('products', [])
-                    products.extend(current_products)
-                    print(f"Retrieved {len(current_products)} products from page {page_count}")
-
-                    link_header = response.headers.get('Link', '')
-                    if 'rel="next"' not in link_header:
-                        break
-
-                    next_link = [l.split(';')[0].strip('<> ') for l in link_header.split(',') if 'rel="next"' in l]
-                    if not next_link:
-                        break
-
-                    try:
-                        params = dict(param.split('=') for param in next_link[0].split('?')[1].split('&'))
-                    except Exception as e:
-                        logging.error(f"Error parsing next page parameters: {str(e)}")
-                        break
-
-                    time.sleep(0.5)
-                    page_count += 1
-
-                elif response.status_code == 429:
-                    retry_after = int(response.headers.get('Retry-After', 10))
-                    time.sleep(retry_after)
-                    continue
-                else:
-                    logging.error(f"API request failed with status code: {response.status_code}")
-                    response.raise_for_status()
-
-            print(f"Successfully retrieved {len(products)} products")
-            return self.process_products_to_dataframe(products)
-        
-        except Exception as e:
-            logging.error(f"Error retrieving products: {str(e)}")
-            raise
 
 def main():
     col1, col2, col3 = st.columns([1, 2, 1])
