@@ -22,7 +22,7 @@ class ShopifyProductSync:
             "X-Shopify-Access-Token": access_token
         }
 
-        def update_product_variant(self, variant_id, new_price, new_inventory):
+    def update_product_variant(self, variant_id, new_price, new_inventory):
         """Update price and inventory of a product variant on Shopify"""
         # Convert and validate the values
         safe_price = self.safe_float(new_price)
