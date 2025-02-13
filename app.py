@@ -67,50 +67,72 @@ class ShopifyProductSync:
             return default
             
 
+    def get_location_id(self):
+        """Fetch the first available location ID"""
+        url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/locations.json"
+        response = requests.get(url, headers=self.headers)
+    
+        if response.status_code == 200:
+            locations = response.json().get("locations", [])
+            if locations:
+                return locations[0]["id"]  # Use the first location
+            else:
+                logging.error("No locations found in Shopify store.")
+                return None
+        else:
+            logging.error(f"Failed to retrieve locations: {response.text}")
+            return None
+
     def update_product_variant(self, variant_id, new_price, new_inventory):
         """Update price and inventory of a product variant on Shopify"""
         safe_price = self.safe_float(new_price)
+        safe_inventory = int(self.safe_float(new_inventory))
     
-        # Update price using the variants API
+        # Step 1: Update Price
         update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
-        data = {
+        price_data = {
             "variant": {
                 "id": variant_id,
                 "price": safe_price
             }
         }
-        response = requests.put(update_url, headers=self.headers, json=data)
-        
-        if response.status_code == 200:
+        price_response = requests.put(update_url, headers=self.headers, json=price_data)
+    
+        if price_response.status_code == 200:
             logging.info(f"Updated variant {variant_id} price to {safe_price}")
         else:
-            logging.error(f"Failed to update price for variant {variant_id}: {response.text}")
+            logging.error(f"Failed to update price for variant {variant_id}: {price_response.text}")
     
-        # Fetch the inventory_item_id for the variant
+        # Step 2: Get inventory_item_id
         variant_info_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
         variant_response = requests.get(variant_info_url, headers=self.headers)
-        
-        if variant_response.status_code == 200:
-            variant_data = variant_response.json()
-            inventory_item_id = variant_data["variant"]["inventory_item_id"]
     
-            # Update inventory using the inventory_levels API
+        if variant_response.status_code == 200:
+            inventory_item_id = variant_response.json()["variant"]["inventory_item_id"]
+    
+            # Step 3: Get location_id
+            location_id = self.get_location_id()
+            if not location_id:
+                logging.error("No valid location_id found. Inventory update skipped.")
+                return
+    
+            # Step 4: Update Inventory
             inventory_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/inventory_levels/set.json"
             inventory_data = {
                 "inventory_item_id": inventory_item_id,
-                "location_id": 76286853358,  # Replace with your Shopify location ID
-                "available": int(new_inventory)
+                "location_id": location_id,
+                "available": safe_inventory
             }
             inventory_response = requests.post(inventory_url, headers=self.headers, json=inventory_data)
     
             if inventory_response.status_code == 200:
-                logging.info(f"Updated inventory for variant {variant_id} to {new_inventory}")
+                logging.info(f"Updated inventory for variant {variant_id} to {safe_inventory}")
             else:
                 logging.error(f"Failed to update inventory for variant {variant_id}: {inventory_response.text}")
         else:
             logging.error(f"Failed to retrieve inventory item ID for variant {variant_id}: {variant_response.text}")
+
     
-        
     def create_product(self, title, sku, price, inventory, brand):
         """Create a new product in Shopify with the given brand."""
         # Convert and validate the values
