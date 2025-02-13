@@ -323,7 +323,7 @@ def main():
                     )
                     
                     if not result:
-                        st.warning(f"Failed to create product {row['اسم البحث'']}. Check the logs for details.")
+                        st.warning(f"Failed to create product {row['اسم البحث']}. Check the logs for details.")
                     
                     time.sleep(0.5)  # Respect API rate limits
 
