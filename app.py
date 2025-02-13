@@ -22,6 +22,26 @@ class ShopifyProductSync:
             "X-Shopify-Access-Token": access_token
         }
 
+        def update_product_variant(self, variant_id, new_price, new_inventory):
+        """Update price and inventory of a product variant on Shopify"""
+        # Convert and validate the values
+        safe_price = self.safe_float(new_price)
+        safe_inventory = int(self.safe_float(new_inventory))  # Convert to integer for inventory
+
+        update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
+        data = {
+            "variant": {
+                "id": variant_id,
+                "price": safe_price,
+                "inventory_quantity": safe_inventory,
+            }
+        }
+        response = requests.put(update_url, headers=self.headers, json=data)
+        if response.status_code == 200:
+            logging.info(f"Updated variant {variant_id} with price {safe_price} and inventory {safe_inventory}")
+        else:
+            logging.error(f"Failed to update variant {variant_id}: {response.text}")
+
     
     def get_products(self):
         """Retrieve products from Shopify API"""
@@ -71,6 +91,8 @@ class ShopifyProductSync:
         except Exception as e:
             logging.error(f"Error retrieving products: {str(e)}")
             raise
+
+    
     def process_products_to_dataframe(self, products):
         """Convert products to DataFrame with specific columns"""
         processed_data = []
@@ -114,46 +136,6 @@ class ShopifyProductSync:
             return float(value)
         except (ValueError, TypeError):
             return default
-
-def update_product_variant(self, variant_id, new_price, new_inventory):
-    """Update price and inventory of a product variant on Shopify"""
-    safe_price = self.safe_float(new_price)
-
-    # Fetch variant details to get inventory_item_id
-    variant_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
-    response = requests.get(variant_url, headers=self.headers)
-    if response.status_code != 200:
-        logging.error(f"Failed to fetch variant details: {response.text}")
-        return
-
-    variant_data = response.json().get('variant', {})
-    inventory_item_id = variant_data.get('inventory_item_id')
-
-    # Fetch locations
-    location_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/locations.json"
-    location_response = requests.get(location_url, headers=self.headers)
-    if location_response.status_code != 200:
-        logging.error(f"Failed to fetch locations: {location_response.text}")
-        return
-
-    locations = location_response.json().get('locations', [])
-    if not locations:
-        logging.error("No locations found for inventory updates.")
-        return
-
-    location_id = locations[0]['id']  # Use the first location
-
-    # Update inventory
-    self.update_inventory_level(inventory_item_id, location_id, new_inventory)
-
-    # Update price separately
-    update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
-    data = {"variant": {"id": variant_id, "price": safe_price}}
-    price_response = requests.put(update_url, headers=self.headers, json=data)
-    if price_response.status_code == 200:
-        logging.info(f"Updated price for variant {variant_id} to {safe_price}")
-    else:
-        logging.error(f"Failed to update price: {price_response.text}")
 
 
     def create_product(self, title, sku, price, inventory, brand):
