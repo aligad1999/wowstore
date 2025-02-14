@@ -10,8 +10,8 @@ import os
 # Set page config
 st.set_page_config(
     page_title="Wow Store Product Sync Tool",
-    page_icon="🔄",
-    layout="wide"
+    page_icon="🔄"
+    #layout="wide"
 )
 
 # Set up logging
