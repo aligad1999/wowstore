@@ -87,15 +87,19 @@ def main():
                 st.write(f"📌 Found {len(unmatched_skus)} new products to create:")
                 st.dataframe(unmatched_skus[['اسم المنتج', 'اسم البحث', 'Sales Price', 'المخزون الفعلي', 'Brand']])
                 
-                # Calculate total operations
+                # Initialize progress tracking
                 total_operations = len(merged_df) + len(unmatched_skus)
                 progress_bar = st.progress(0)
                 status_text = st.empty()
-                
+                completed_operations = 0
+
                 # Update existing products
                 for index, row in merged_df.iterrows():
-                    # Ensure progress stays within [0, 1]
-                    progress = min((index + 1) / total_operations, 1.0)
+                    completed_operations += 1
+                    # Calculate progress as a percentage of completed operations
+                    progress = completed_operations / total_operations
+                    # Ensure progress stays within bounds
+                    progress = max(0, min(1.0, progress))
                     progress_bar.progress(progress)
                     status_text.text(f"Updating existing product {index + 1} of {len(merged_df)}: {row['title']}")
                     
@@ -108,15 +112,15 @@ def main():
                     if not success:
                         logging.warning(f"Failed to update {row['sku']}. Check the logs for details.")
                     
-                    time.sleep(0.5)  # Respect API rate limits
+                    time.sleep(0.25)  # Reduced sleep time
                 
                 # Create new products
-                start_progress = len(merged_df) / total_operations
                 for index, row in unmatched_skus.iterrows():
-                    # Calculate progress for new products portion
-                    current_progress = start_progress + (index + 1) / total_operations
-                    # Ensure progress stays within [0, 1]
-                    progress = min(current_progress, 1.0)
+                    completed_operations += 1
+                    # Calculate progress as a percentage of completed operations
+                    progress = completed_operations / total_operations
+                    # Ensure progress stays within bounds
+                    progress = max(0, min(1.0, progress))
                     progress_bar.progress(progress)
                     status_text.text(f"Creating new product {index + 1} of {len(unmatched_skus)}: {row['اسم المنتج']}")
                     
@@ -131,7 +135,7 @@ def main():
                     if not result:
                         st.warning(f"Failed to create product {row['اسم البحث']}. Check the logs for details.")
                     
-                    time.sleep(0.5)  # Respect API rate limits
+                    time.sleep(0.25)  # Reduced sleep time
                 
                 # Ensure final progress is exactly 1.0
                 progress_bar.progress(1.0)
