@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import requests
 import pandas as pd
@@ -6,23 +5,20 @@ import time
 import logging
 from datetime import datetime
 import os
-
 # Set page config
 st.set_page_config(
     page_title="Wow Store Product Sync Tool",
     page_icon="🔄"
+    #layout="wide"
 )
-
 # Set up logging
 logging.basicConfig(
     filename='shopify_product_sync.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
-
 class ShopifyProductSync:
-    # [Previous class implementation remains the same until the main() function]
-    def __init__(self, store_name, access_token):
+    def init(self, store_name, access_token):
         self.store_name = store_name
         self.access_token = access_token
         self.base_url = f"https://{store_name}.myshopify.com/admin/api/2024-01/products.json"
@@ -31,9 +27,181 @@ class ShopifyProductSync:
             "X-Shopify-Access-Token": access_token
         }
         self.location_id = self.get_location_id()
+    def get_location_id(self):
+        """Get the first location ID from the store"""
+        url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/locations.json"
+        response = requests.get(url, headers=self.headers)
 
-    # [Include all other methods from your original class implementation]
-    # [They remain unchanged]
+        if response.status_code == 200:
+            locations = response.json().get('locations', [])
+            if locations:
+                location_id = locations[0]['id']
+                logging.info(f"Retrieved location ID: {location_id}")
+                return location_id
+
+        logging.error("Failed to get location ID")
+        return None
+    def set_inventory_level(self, inventory_item_id, new_quantity):
+        """Set inventory level directly using the inventory levels set endpoint"""
+        if not self.location_id:
+            logging.error("No location ID available")
+            return False
+        set_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/inventory_levels/set.json"
+
+        data = {
+            "location_id": self.location_id,
+            "inventory_item_id": inventory_item_id,
+            "available": int(new_quantity)
+        }
+
+        try:
+            response = requests.post(set_url, headers=self.headers, json=data)
+            if response.status_code == 200:
+                logging.info(f"Successfully set inventory for item {inventory_item_id} to {new_quantity}")
+                return True
+            else:
+                logging.error(f"Failed to set inventory: Status {response.status_code}, Response: {response.text}")
+                return False
+        except Exception as e:
+            logging.error(f"Error setting inventory: {str(e)}")
+            return False
+    def process_products_to_dataframe(self, products):
+        """Convert products to DataFrame with specific columns"""
+        processed_data = []
+        for product in products:
+            for variant in product.get('variants', []):
+                product_data = {
+                    'product_id': product.get('id'),
+                    'title': product.get('title'),
+                    'variant_id': variant.get('id'),
+                    'price': float(variant.get('price', 0)),
+                    'sku': variant.get('sku'),
+                    'inventory_quantity': variant.get('inventory_quantity'),
+                    'inventory_item_id': variant.get('inventory_item_id'),
+                    'created_at': product.get('created_at'),
+                    'updated_at': product.get('updated_at'),
+                    'status': product.get('status', 'active')
+                }
+                processed_data.append(product_data)
+        df = pd.DataFrame(processed_data)
+        df['created_at'] = pd.to_datetime(df['created_at'], errors='coerce', utc=True)
+        df['updated_at'] = pd.to_datetime(df['updated_at'], errors='coerce', utc=True)
+        return df
+    def safe_float(self, value, default=0):
+        """Safely convert value to float, handling None, NaN, and string numbers with commas"""
+        if pd.isna(value) or value == '':
+            return default
+        if isinstance(value, str):
+            value = value.replace(',', '').strip()
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+    def update_product_variant(self, variant_id, new_price, new_inventory):
+        """Update price and inventory of a product variant on Shopify"""
+        try:
+            # First, get the variant details to get the inventory_item_id
+            variant_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
+            variant_response = requests.get(variant_url, headers=self.headers)
+
+            if variant_response.status_code != 200:
+                logging.error(f"Failed to get variant details for {variant_id}")
+                return False
+            variant_data = variant_response.json()['variant']
+            inventory_item_id = variant_data['inventory_item_id']
+            # Update price
+            update_url = f"https://{self.store_name}.myshopify.com/admin/api/2024-01/variants/{variant_id}.json"
+            price_data = {
+                "variant": {
+                    "id": variant_id,
+                    "price": self.safe_float(new_price)
+                }
+            }
+
+            price_response = requests.put(update_url, headers=self.headers, json=price_data)
+            if price_response.status_code != 200:
+                logging.error(f"Failed to update price for variant {variant_id}")
+                return False
+            # Update inventory separately
+            inventory_success = self.set_inventory_level(inventory_item_id, new_inventory)
+
+            if inventory_success:
+                logging.info(f"Successfully updated variant {variant_id} price and inventory")
+                return True
+            else:
+                logging.error(f"Failed to update inventory for variant {variant_id}")
+                return False
+        except Exception as e:
+            logging.error(f"Error in update_product_variant: {str(e)}")
+            return False
+    def get_products(self):
+        """Retrieve products from Shopify API"""
+        try:
+            products = []
+            params = {'limit': 250}
+            page_count = 1
+            while True:
+                response = requests.get(self.base_url, headers=self.headers, params=params)
+                logging.info(f"Fetching page {page_count}")
+                if response.status_code == 200:
+                    data = response.json()
+                    current_products = data.get('products', [])
+                    products.extend(current_products)
+                    print(f"Retrieved {len(current_products)} products from page {page_count}")
+                    link_header = response.headers.get('Link', '')
+                    if 'rel="next"' not in link_header:
+                        break
+                    next_link = [l.split(';')[0].strip('<> ') for l in link_header.split(',') if 'rel="next"' in l]
+                    if not next_link:
+                        break
+                    try:
+                        params = dict(param.split('=') for param in next_link[0].split('?')[1].split('&'))
+                    except Exception as e:
+                        logging.error(f"Error parsing next page parameters: {str(e)}")
+                        break
+                    time.sleep(0.5)
+                    page_count += 1
+                elif response.status_code == 429:
+                    retry_after = int(response.headers.get('Retry-After', 10))
+                    time.sleep(retry_after)
+                    continue
+                else:
+                    logging.error(f"API request failed with status code: {response.status_code}")
+                    response.raise_for_status()
+            print(f"Successfully retrieved {len(products)} products")
+            return self.process_products_to_dataframe(products)
+
+        except Exception as e:
+            logging.error(f"Error retrieving products: {str(e)}")
+            raise
+
+    def create_product(self, title, sku, price, inventory, brand):
+        """Create a new product in Shopify with the given brand."""
+        # Convert and validate the values
+        safe_price = self.safe_float(price)
+        safe_inventory = int(self.safe_float(inventory))  # Convert to integer for inventory
+        data = {
+            "product": {
+                "title": title,
+                "status": "draft",
+                #"vendor": brand.strip() if isinstance(brand, str) else brand,  # Clean up brand name
+                "variants": [{
+                    "sku": sku,
+                    "price": safe_price,
+                    "inventory_quantity": safe_inventory,
+                    "inventory_management": "shopify",  # Enable inventory tracking
+                    "inventory_policy": "deny",  # Prevent selling when out of stock
+                    "requires_shipping": True
+                }]
+            }
+        }
+        response = requests.post(self.base_url, headers=self.headers, json=data)
+        if response.status_code == 201:
+            logging.info(f"Created new product '{title}' with SKU {sku} and Brand '{brand}'")
+            return response.json()
+        else:
+            logging.error(f"Failed to create product {title}: {response.text}")
+            return None
 
 def main():
     col1, col2, col3 = st.columns([1, 2, 1])
