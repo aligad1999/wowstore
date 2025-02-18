@@ -18,7 +18,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 class ShopifyProductSync:
-    def init(self, store_name, access_token):
+    def __init__(self, store_name, access_token):
         self.store_name = store_name
         self.access_token = access_token
         self.base_url = f"https://{store_name}.myshopify.com/admin/api/2024-01/products.json"
