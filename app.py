@@ -227,7 +227,7 @@ def main():
         uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
         if uploaded_file is not None:
             external_df = pd.read_excel(uploaded_file)
-            required_columns = ['اسم البحث', 'المخزون الفعلي', 'Sales Price', 'اسم المنتج', 'Brand']
+            required_columns = ['Item number', 'On Hand', 'Sales Price', 'Item Name', 'Brand']
             
             if all(column in external_df.columns for column in required_columns):
                 st.markdown("""
@@ -236,27 +236,27 @@ def main():
                 """)
                 
                 # Clean up the data
-                external_df['المخزون الفعلي'] = external_df['المخزون الفعلي'].apply(sync.safe_float)
+                external_df['On Hand'] = external_df['On Hand'].apply(sync.safe_float)
                 external_df['Sales Price'] = external_df['Sales Price'].apply(sync.safe_float)
                 external_df['Brand'] = external_df['Brand'].fillna('').astype(str).str.strip()
-                external_df['اسم البحث'] = external_df['اسم البحث'].astype(str).str.strip().str.replace(" ", "")
+                external_df['Item number'] = external_df['Item number'].astype(str).str.strip().str.replace(" ", "")
                 
                 # Get existing products
                 df = sync.get_products()
                 
                 df['sku'] = df['sku'].astype(str).str.strip().str.replace(" ", "")
                 # Perform merge
-                merged_df = df.merge(external_df, left_on='sku', right_on='اسم البحث', how='inner')
+                merged_df = df.merge(external_df, left_on='sku', right_on='Item number', how='inner')
                 
                 # Find unmatched SKUs (new products)
-                unmatched_skus = external_df[~external_df['اسم البحث'].isin(df['sku'])]
+                unmatched_skus = external_df[~external_df['Item number'].isin(df['sku'])]
                 
                 # Show preview of updates
                 st.write(f"✅ Found {len(merged_df)} products to update:")
-                st.dataframe(merged_df[["title", "sku", "Sales Price", "المخزون الفعلي"]])
+                st.dataframe(merged_df[["title", "sku", "Sales Price", "On Hand"]])
                 
                 st.write(f"📌 Found {len(unmatched_skus)} new products to create:")
-                st.dataframe(unmatched_skus[['اسم المنتج', 'اسم البحث', 'Sales Price', 'المخزون الفعلي', 'Brand']])
+                st.dataframe(unmatched_skus[['Item Name', 'Item number', 'Sales Price', 'On Hand', 'Brand']])
                 
                 # Initialize progress tracking
                 total_operations = len(merged_df) + len(unmatched_skus)
@@ -277,7 +277,7 @@ def main():
                     success = sync.update_product_variant(
                         row['variant_id'],
                         row['Sales Price'],
-                        row['المخزون الفعلي']
+                        row['On Hand']
                     )
                     
                     if not success:
@@ -293,18 +293,18 @@ def main():
                     # Ensure progress stays within bounds
                     progress = max(0, min(1.0, progress))
                     progress_bar.progress(progress)
-                    status_text.text(f"Creating new product {index + 1} of {len(unmatched_skus)}: {row['اسم المنتج']}")
+                    status_text.text(f"Creating new product {index + 1} of {len(unmatched_skus)}: {row['Item Name']}")
                     
                     result = sync.create_product(
-                        title=row['اسم المنتج'],
-                        sku=row['اسم البحث'],
+                        title=row['Item Name'],
+                        sku=row['Item number'],
                         price=row['Sales Price'],
-                        inventory=row['المخزون الفعلي'],
+                        inventory=row['On Hand'],
                         brand=row['Brand']
                     )
                     
                     if not result:
-                        st.warning(f"Failed to create product {row['اسم البحث']}. Check the logs for details.")
+                        st.warning(f"Failed to create product {row['Item number']}. Check the logs for details.")
                     
                     time.sleep(0.25)  # Reduced sleep time
                 
